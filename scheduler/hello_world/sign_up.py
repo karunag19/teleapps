@@ -1,0 +1,15 @@
+import boto3
+
+# access_token = "eyJraWQiOiJITUxMTjJBcVwvbCtGOFQ2eDhZOWpia25xb05UbEVHMDJiakd1NkNqQzg4az0iLCJhbGciOiJSUzI1NiJ9.eyJvcmlnaW5fanRpIjoiYTQzMWM2NTEtOWJjMS00MjdiLTlmMmUtOGNhMWJjMDhlODYzIiwic3ViIjoiOThlOTkxYzItNjM0MS00NDRkLTgxMmEtOGJkN2IyMTcyNjc5IiwiZXZlbnRfaWQiOiJiNjkyNGFmMS04MDVkLTQ3MGYtOWVlMS1mZjZhY2YxOTMxMzkiLCJ0b2tlbl91c2UiOiJhY2Nlc3MiLCJzY29wZSI6ImF3cy5jb2duaXRvLnNpZ25pbi51c2VyLmFkbWluIiwiYXV0aF90aW1lIjoxNjM3OTE2MjQ0LCJpc3MiOiJodHRwczpcL1wvY29nbml0by1pZHAuYXAtc291dGhlYXN0LTIuYW1hem9uYXdzLmNvbVwvYXAtc291dGhlYXN0LTJfaVd3b3BLTHNVIiwiZXhwIjoxNjM4MDAyNjQ0LCJpYXQiOjE2Mzc5MTYyNDQsImp0aSI6IjBiMjczZTMwLWNmN2QtNGE4YS1hNTgwLWY1NWJjNTUyNGY5NSIsImNsaWVudF9pZCI6IjRjaGdvb2pnbGo0bTBxaTlnaDdmdWVscHA3IiwidXNlcm5hbWUiOiI5OGU5OTFjMi02MzQxLTQ0NGQtODEyYS04YmQ3YjIxNzI2NzkifQ.tkCtTyeGc7QFMOzuG6AIaJrKszQifRnwzbxV99HE6piZjSkkEOIASdyrZvrnlD2G7V-x_LKlgd_4cRQVDImEGoFr2KNsfjFFC8aNWGkWe1915GeLdJ8LY8Jtb6QCsbSfoTx6pSMKlvjq-9j0cm30ZK9Qs7Ra_49NvZxV9TvkZIssKdP6NVfU2x-rLHfxxoDfOy9gJY0zfQCotemfJnWbepbbhc0R4zm9rqx8TUi_7H9elAY7VGQmSX0_WeE1belqO1bpdA-fQ6D_imn2eRbBF821Twyw1tevoy_mo98KIsQlxRTxiEzT-scykqDMO7T2XFCEPyNTDAIXpA6bfHhqWg"
+
+client = boto3.client('cognito-idp', region_name='ap-southeast-2')
+
+try:
+    response = client.sign_up(
+        ClientId = '4chgoojglj4m0qi9gh7fuelpp7',
+        Username = 'karunag19@live.in',
+        Password = 'Karuna@123'
+    )
+    print(response)
+except Exception as e:
+    print(f"ERROR: {e}")

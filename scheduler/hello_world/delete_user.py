@@ -1,0 +1,24 @@
+import logging
+import boto3
+from botocore.exceptions import ClientError
+ 
+keyId = "AKIARA4JQP7Q2ZLBERH3"
+sKeyId="0J8D/YG1cZgn8FJBiOo+5KE1vjgJQcxUJctH0KTu"
+region = 'ap-southeast-2'
+ 
+try:
+    client = boto3.client(
+        'cognito-idp', 
+        region_name=region,
+        aws_access_key_id = keyId,
+        aws_secret_access_key= sKeyId
+    )
+
+    response = client.admin_delete_user(
+        UserPoolId = 'ap-southeast-2_iWwopKLsU',
+        Username = 'karunag19@live.in'
+    )
+    print(response)
+except ClientError as e:
+    logging.error(e)
+
