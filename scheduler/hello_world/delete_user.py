@@ -1,9 +1,12 @@
 import logging
 import boto3
 from botocore.exceptions import ClientError
- 
-keyId = "AKIARA4JQP7Q2ZLBERH3"
-sKeyId="0J8D/YG1cZgn8FJBiOo+5KE1vjgJQcxUJctH0KTu"
+import os
+from dotenv import load_dotenv
+load_dotenv()
+
+keyId = os.environ.get("CLIENT_ID")
+sKeyId=os.environ.get("SECRET_KEY")
 region = 'ap-southeast-2'
  
 try:

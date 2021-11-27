@@ -17,20 +17,9 @@ try:
         aws_secret_access_key= sKeyId
     )
 
-    response = client.admin_create_user(
+    response = client.admin_get_user(
         UserPoolId = 'ap-southeast-2_iWwopKLsU',
-        Username = 'karunag19@live.in',
-        TemporaryPassword = 'Karuna@123',
-        UserAttributes = [{
-            'Name': 'email',
-            'Value': 'karunag19@live.in'
-
-        },
-        {
-            'Name': 'email_verified',
-            'Value': 'True'
-
-        }]
+        Username = 'karunag19@gmail.com'
     )
     print(response)
 except ClientError as e:
