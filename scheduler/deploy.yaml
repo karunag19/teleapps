@@ -12,7 +12,7 @@ Resources:
   HelloWorldFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: s3://deployment-teleapps-schedule/3e65a809648bcc66c0aace5a681e3833
+      CodeUri: s3://deployment-teleapps-schedule/37e8f1a842dc88dd8b563aafcd58cdc3
       Handler: app.lambda_handler
       Runtime: python3.8
       Architectures:
@@ -23,21 +23,36 @@ Resources:
           Properties:
             Path: /hello
             Method: get
-  GetUsersFunction:
+  UsersFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: GetUsers
-      Description: Get list of admin users
+      FunctionName: Users
+      Description: Create, Delete, List & Reset admin users
       Role: arn:aws:iam::070618480609:role/TeleApps-Schedule
-      CodeUri: s3://deployment-teleapps-schedule/e12befd88d1187461251c0184b6e5fc9
+      CodeUri: s3://deployment-teleapps-schedule/5ef342af9b9f87248cd64172fc05fa8d
       Handler: main.lambda_handler
       Runtime: python3.8
       Events:
         GetUsersAPI:
           Type: Api
           Properties:
-            Path: /get_users
-            Method: get
+            Path: /users
+            Method: ANY
+  ResetPasswordFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: ResetPassword
+      Description: ResetPassword - admin users
+      Role: arn:aws:iam::070618480609:role/TeleApps-Schedule
+      CodeUri: s3://deployment-teleapps-schedule/5ef342af9b9f87248cd64172fc05fa8d
+      Handler: main.lambda_handler
+      Runtime: python3.8
+      Events:
+        GetUsersAPI:
+          Type: Api
+          Properties:
+            Path: /password_reset
+            Method: POST
 Outputs:
   HelloWorldApi:
     Description: API Gateway endpoint URL for Prod stage for Hello World function

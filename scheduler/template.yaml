@@ -25,25 +25,55 @@ Resources:
           Properties:
             Path: /hello
             Method: get
+            # Auth:
+            #   Authorizers:
+            #     MyCognitoAuth:
+            #       AuthorizationScopes:
+            #         - scope1
+            #         - scope2
+            #       UserPoolArn:
+            #         Fn::GetAtt:
+            #           - MyCognitoUserPool
+            #           - Arn
+            #       Identity:
+            #         Header: MyAuthorizationHeader
+            #         ValidationExpression: myauthvalidationexpression
 
-  GetUsersFunction:
+
+  UsersFunction:
     Type: AWS::Serverless::Function 
     Properties:
-      FunctionName: GetUsers
-      Description: Get list of admin users
+      FunctionName: Users
+      Description: Create, Delete, List & Reset admin users
       Role: arn:aws:iam::070618480609:role/TeleApps-Schedule
-      CodeUri: get_users/
+      CodeUri: admin_users/
       Handler: main.lambda_handler
       Runtime: python3.8
       Events:
         GetUsersAPI:
           Type: Api 
           Properties:
-            Path: /get_users
+            Path: /users
             Method: 'ANY'
-            Auth:
-              Authorizer: Sparza_User_Pool
-         
+            # Auth:
+            #   Authorizer: Sparza_User_Pool
+  ResetPasswordFunction:
+    Type: AWS::Serverless::Function 
+    Properties:
+      FunctionName: ResetPassword
+      Description: ResetPassword - admin users
+      Role: arn:aws:iam::070618480609:role/TeleApps-Schedule
+      CodeUri: admin_users/
+      Handler: main.lambda_handler
+      Runtime: python3.8
+      Events:
+        GetUsersAPI:
+          Type: Api 
+          Properties:
+            Path: /password_reset
+            Method: 'POST'
+            # Auth:
+            #   Authorizer: Sparza_User_Pool   
 
   # BasicAWSApiGateway:
   #   Type: AWS::Serverless::Api

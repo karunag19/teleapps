@@ -14,15 +14,17 @@ def lambda_handler(event, context):
         client = get_client()
         if event['httpMethod'] == "GET":
             result = get_users(client)
-        elif event['httpMethod'] == "POST":
+        elif event['httpMethod'] == "POST" and event['path'] == "/users":
             param = json.loads(event['body'])
             result = create_user(client, param)
         elif event['httpMethod'] == "DELETE":
             param = json.loads(event['body'])
             result = delete_user(client, param)
-        elif event['httpMethod'] == "PUT":
+        elif event['httpMethod'] == "POST" and event['path'] == "/password_reset":
             param = json.loads(event['body'])
-            result = reset_password(client, param)            
+            result = reset_password(client, param)  
+        else:
+            result = {"Error": "Invalid method type"}          
 
         data = get_result(0, result)
         return {
@@ -144,6 +146,7 @@ def reset_password(client, param):
             UserPoolId = user_pool_id,
             Username = param['email'],
         )
-        return response         
+        return response
+        # return {'name': 'Karuna'}         
     except Exception as e:
         raise e        
