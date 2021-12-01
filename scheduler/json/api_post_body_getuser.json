@@ -1,0 +1,91 @@
+{
+	"body": {
+		"Age": "49",
+		"Name": "Karuna",
+		"Sex": "Male"
+	},
+	"headers": {
+		"Accept": "*/*",
+		"Accept-Encoding": "gzip, deflate    ",
+		"Connection": "keep-alive",
+		"Content-Length": "59",
+		"Content-Type": "application/json",
+		"Cookie": "csrftoken=mbsD3jyEQ2ZvWU4sDb8tZqvPU7R24eHyRe8l3T0XxFcfvvHF9uNBACBSrESPIRRu",
+		"Host": "10.10.42.26:3000",
+		"Postman-Token": "28f5df21-d602-4582-827a-daec07e1ed02",
+		"User-Agent": "PostmanRuntime/7.28.4",
+		"X-Forwarded-Port": "3000",
+		"X-Forwarded-Proto": "http"
+	},
+	"httpMethod": "POST",
+	"isBase64Encoded": "False",
+	"multiValueHeaders": {
+		"Accept": [
+			"*/*"
+		],
+		"Accept-Encoding": [
+			"gzip, deflate    "
+		],
+		"Connection": [
+			"keep-alive"
+		],
+		"Content-Length": [
+			"59"
+		],
+		"Content-Type": [
+			"application/json"
+		],
+		"Cookie": [
+			"csrftoken=mbsD3jyEQ2ZvWU4sDb8tZqvPU7R24eHyRe8l3T0XxFcfvvHF9uNBACBSrESPIRRu"
+		],
+		"Host": [
+			"10.10.42.26:3000"
+		],
+		"Postman-Token": [
+			"28f5df21-d602-4582-827a-daec07e1ed02"
+		],
+		"User-Agent": [
+			"PostmanRuntime/7.28.4"
+		],
+		"X-Forwarded-Port": [
+			"3000"
+		],
+		"X-Forwarded-Proto": [
+			"http"
+		]
+	},
+	"multiValueQueryStringParameters": "None",
+	"path": "/get_users",
+	"pathParameters": "None",
+	"queryStringParameters": "None",
+	"requestContext": {
+		"accountId": "123456789012",
+		"apiId": "1234567890",
+		"domainName": "10.10.42.26:3000",
+		"extendedRequestId": "None",
+		"httpMethod": "POST",
+		"identity": {
+			"accountId": "None",
+			"apiKey": "None",
+			"caller": "None",
+			"cognitoAuthenticationProvider": "None",
+			"cognitoAuthenticationType": "None",
+			"cognitoIdentityPoolId": "None",
+			"sourceIp": "10.11.92.101",
+			"user": "None",
+			"userAgent": "Custom User Agent String",
+			"userArn": "None"
+		},
+		"path": "/get_users",
+		"protocol": "HTTP/1.1",
+		"requestId": "6f9d4bf6-39cd-4413-8a9c-8c795021c604",
+		"requestTime": "29/Nov/2021:07:33:06 +0000",
+		"requestTimeEpoch": 1638171186,
+		"resourceId": "123456",
+		"resourcePath": "/get_users",
+		"stage": "Prod"
+	},
+	"resource": "/get_users",
+	"stageVariables": "None",
+	"version": "1.0"
+}

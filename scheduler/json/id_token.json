@@ -1,0 +1,15 @@
+{
+    "at_hash": "3kxLeGMDISnKV9Pqakt21w",
+    "aud": "1c1bpdflq23gl88sso1crlvko5",
+    "auth_time": "1638339370",
+    "cognito:username": "39be495f-a79e-4888-810f-4274ef811012",
+    "email": "karunag19@live.in",
+    "email_verified": "true",
+    "event_id": "778002a4-2576-4a03-9317-e9bdc1e071bc",
+    "exp": "Wed Dec 01 07:16:10 UTC 2021",
+    "iat": "Wed Dec 01 06:16:10 UTC 2021",
+    "iss": "https://cognito-idp.ap-southeast-2.amazonaws.com/ap-southeast-2_iWwopKLsU",
+    "jti": "b231655a-c8b2-486a-ba88-567549d53230",
+    "sub": "39be495f-a79e-4888-810f-4274ef811012",
+    "token_use": "id"
+    }

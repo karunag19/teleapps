@@ -32,7 +32,12 @@ To check using curl:
 
 To create packages:
     sam package --template-file <template file name> --output-template-file <output file name> --s3-bucket <s3 bucket name>
-    sam package --template-file template.yaml --output-template-file deploy.yaml --s3-bucket transcribe-before
+    sam package --template-file template.yaml --output-template-file deploy.yaml --s3-bucket deployment-teleapps-schedule
 
 To deploy packages:
     sam deploy --template-file deploy.yaml --stack-name MySAMLambdaStack --capabilities CAPABILITY_IAM
+    sam deploy --template-file deploy.yaml --stack-name TeleApps-Schedule --capabilities CAPABILITY_IAM
+
+Reference:
+    https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+    

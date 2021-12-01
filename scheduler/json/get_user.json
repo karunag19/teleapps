@@ -1,0 +1,79 @@
+{
+	"Users": [
+		{
+			"Username": "98e991c2-6341-444d-812a-8bd7b2172679",
+			"Attributes": [
+				{
+					"Name": "sub",
+					"Value": "98e991c2-6341-444d-812a-8bd7b2172679"
+				},
+				{
+					"Name": "email_verified",
+					"Value": "true"
+				},
+				{
+					"Name": "email",
+					"Value": "karunag19@gmail.com"
+				}
+			],
+			"UserCreateDate": "datetime.datetime(2021, 11, 23, 12, 58, 47, 298000, tzinfo=tzlocal())",
+			"UserLastModifiedDate": "datetime.datetime(2021, 11, 24, 15, 24, 15, 889000, tzinfo=tzlocal())",
+			"Enabled": "True",
+			"UserStatus": "CONFIRMED"
+		},
+		{
+			"Username": "a1739f71-be56-483a-9ca6-8e0cac432cca",
+			"Attributes": [
+				{
+					"Name": "sub",
+					"Value": "a1739f71-be56-483a-9ca6-8e0cac432cca"
+				},
+				{
+					"Name": "email_verified",
+					"Value": "True"
+				},
+				{
+					"Name": "email",
+					"Value": "karunag19@live.in"
+				}
+			],
+			"UserCreateDate": "datetime.datetime(2021, 11, 27, 8, 40, 19, 134000, tzinfo=tzlocal())",
+			"UserLastModifiedDate": "datetime.datetime(2021, 11, 27, 8, 40, 19, 134000, tzinfo=tzlocal())",
+			"Enabled": "True",
+			"UserStatus": "FORCE_CHANGE_PASSWORD"
+		},
+		{
+			"Username": "fa999f5c-5360-409d-9cfa-8a502ed28f0c",
+			"Attributes": [
+				{
+					"Name": "sub",
+					"Value": "fa999f5c-5360-409d-9cfa-8a502ed28f0c"
+				},
+				{
+					"Name": "email_verified",
+					"Value": "true"
+				},
+				{
+					"Name": "email",
+					"Value": "karuna.g@teleapps.com.au"
+				}
+			],
+			"UserCreateDate": "datetime.datetime(2021, 11, 26, 9, 53, 24, 760000, tzinfo=tzlocal())",
+			"UserLastModifiedDate": "datetime.datetime(2021, 11, 26, 10, 16, 3, 893000, tzinfo=tzlocal())",
+			"Enabled": "True",
+			"UserStatus": "CONFIRMED"
+		}
+	],
+	"ResponseMetadata": {
+		"RequestId": "c8b36029-279a-441a-ba18-86d273a64a46",
+		"HTTPStatusCode": 200,
+		"HTTPHeaders": {
+			"date": "Sun, 28 Nov 2021 05:07:22 GMT",
+			"content-type": "application/x-amz-json-1.1",
+			"content-length": "1018",
+			"connection": "keep-alive",
+			"x-amzn-requestid": "c8b36029-279a-441a-ba18-86d273a64a46"
+		},
+		"RetryAttempts": 0
+	}
+}

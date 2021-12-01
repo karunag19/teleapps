@@ -40,42 +40,8 @@ Resources:
           Type: Api 
           Properties:
             Path: /get_users
-            Method: 'ANY'
-            Auth:
-              Authorizer: Sparza_User_Pool
-         
+            Method: get            
 
-  # BasicAWSApiGateway:
-  #   Type: AWS::Serverless::Api
-  #   Properties:
-  #     Name: Basic AWS Api Gateway
-  #     StageName: Staging
-  #     Auth:
-  #       Authorizers:
-  #         BasicAuthorizer:
-  #           FunctionPayloadType: TOKEN
-  #           FunctionArn: !ImportValue BasicAuthorizerFunction-Arn
-  #           Identity:
-  #             Header: Authorization
-  #             ValidationExpression: ^[Bb]earer [-0-9a-zA-z\.]*$
-  #             ReauthorizeEvery: 0
-  #       DefaultAuthorizer: BasicAuthorizer
-    # ApiGatewayApi:
-    # Type: AWS::Serverless::Api
-    # Properties:
-    #   StageName: prod
-    #   MethodSettings:
-    #     - ThrottlingBurstLimit: 20
-    #       ThrottlingRateLimit: 20
-    #       HttpMethod: "*"
-    #       ResourcePath: "/*"
-    #       LoggingLevel: INFO
-    #       MetricsEnabled: true
-    #   Auth:  (Karua: - This is not working, i have to check)
-    #     DefaultAuthorizer: MyCognitoAuthorizer
-    #     Authorizers:
-    #       MyCognitoAuthorizer:
-    #         UserPoolArn: !GetAtt CognitoPool.Arn
 
 Outputs:
   # ServerlessRestApi is an implicit API created out of Events key under Serverless::Function
