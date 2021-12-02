@@ -4,49 +4,19 @@ Description: >
   scheduler
 
   Sample SAM Template for scheduler
-
 # More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
 Globals:
   Function:
     Timeout: 3
 
 Resources:
-  HelloWorldFunction:
-    Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
-    Properties:
-      CodeUri: hello_world/
-      Handler: app.lambda_handler
-      Runtime: python3.8
-      Architectures:
-        - x86_64
-      Events:
-        HelloWorld:
-          Type: Api # More info about API Event Source: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#api
-          Properties:
-            Path: /hello
-            Method: get
-            # Auth:
-            #   Authorizers:
-            #     MyCognitoAuth:
-            #       AuthorizationScopes:
-            #         - scope1
-            #         - scope2
-            #       UserPoolArn:
-            #         Fn::GetAtt:
-            #           - MyCognitoUserPool
-            #           - Arn
-            #       Identity:
-            #         Header: MyAuthorizationHeader
-            #         ValidationExpression: myauthvalidationexpression
-
-
   UsersFunction:
     Type: AWS::Serverless::Function 
     Properties:
       FunctionName: Users
       Description: Create, Delete, List & Reset admin users
       Role: arn:aws:iam::070618480609:role/TeleApps-Schedule
-      CodeUri: admin_users/
+      CodeUri: cognito/
       Handler: main.lambda_handler
       Runtime: python3.8
       Events:
@@ -55,15 +25,13 @@ Resources:
           Properties:
             Path: /users
             Method: 'ANY'
-            # Auth:
-            #   Authorizer: Sparza_User_Pool
   ResetPasswordFunction:
     Type: AWS::Serverless::Function 
     Properties:
       FunctionName: ResetPassword
       Description: ResetPassword - admin users
       Role: arn:aws:iam::070618480609:role/TeleApps-Schedule
-      CodeUri: admin_users/
+      CodeUri: cognito/
       Handler: main.lambda_handler
       Runtime: python3.8
       Events:
@@ -72,24 +40,84 @@ Resources:
           Properties:
             Path: /password_reset
             Method: 'POST'
-            # Auth:
-            #   Authorizer: Sparza_User_Pool   
+  AgentFunction:
+    Type: AWS::Serverless::Function 
+    Properties:
+      FunctionName: Agent
+      Description: List all genesys agents
+      Role: arn:aws:iam::070618480609:role/TeleApps-Schedule
+      CodeUri: genesys/
+      Handler: g_main.lambda_handler
+      Layers:
+        - !Ref AppDepLayer      
+      Runtime: python3.8
+      Events:
+        GetUsersAPI:
+          Type: Api 
+          Properties:
+            Path: /agents
+            Method: 'Get' 
+  SkillFunction:
+    Type: AWS::Serverless::Function 
+    Properties:
+      FunctionName: Skill
+      Description: List all genesys agents
+      Role: arn:aws:iam::070618480609:role/TeleApps-Schedule
+      CodeUri: genesys/
+      Handler: g_main.lambda_handler
+      Layers:
+        - !Ref AppDepLayer      
+      Runtime: python3.8
+      Events:
+        GetUsersAPI:
+          Type: Api 
+          Properties:
+            Path: /skills
+            Method: 'Get' 
+  TokenFunction:
+    Type: AWS::Serverless::Function 
+    Properties:
+      FunctionName: Token
+      Description: List all genesys agents
+      Role: arn:aws:iam::070618480609:role/TeleApps-Schedule
+      CodeUri: genesys/
+      Handler: g_main.lambda_handler
+      Layers:
+        - !Ref AppDepLayer
+      Runtime: python3.8
+      Events:
+        GetUsersAPI:
+          Type: Api 
+          Properties:
+            Path: /update_token
+            Method: 'Get'      
 
-  # BasicAWSApiGateway:
-  #   Type: AWS::Serverless::Api
-  #   Properties:
-  #     Name: Basic AWS Api Gateway
-  #     StageName: Staging
-  #     Auth:
-  #       Authorizers:
-  #         BasicAuthorizer:
-  #           FunctionPayloadType: TOKEN
-  #           FunctionArn: !ImportValue BasicAuthorizerFunction-Arn
-  #           Identity:
-  #             Header: Authorization
-  #             ValidationExpression: ^[Bb]earer [-0-9a-zA-z\.]*$
-  #             ReauthorizeEvery: 0
-  #       DefaultAuthorizer: BasicAuthorizer
+  AppDepLayer:
+      Type: AWS::Serverless::LayerVersion
+      Properties:
+          LayerName: sam-app-dependencies
+          Description: Dependencies for sam app [requets]
+          ContentUri: dependencies/
+          CompatibleRuntimes:
+            - python3.8
+          LicenseInfo: 'MIT'
+          RetentionPolicy: Retain
+
+
+Outputs:
+  # ServerlessRestApi is an implicit API created out of Events key under Serverless::Function
+  # Find out more about other implicit resources you can reference within SAM
+  # https://github.com/awslabs/serverless-application-model/blob/master/docs/internals/generated_resources.rst#api
+  HelloWorldApi:
+    Description: "API Gateway endpoint URL for Prod stage for Hello World function"
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/hello/"
+  HelloWorldFunction:
+    Description: "Hello World Lambda Function ARN"
+    Value: !GetAtt HelloWorldFunction.Arn
+  HelloWorldFunctionIamRole:
+    Description: "Implicit IAM Role created for Hello World function"
+    Value: !GetAtt HelloWorldFunctionRole.Arn
+
     # ApiGatewayApi:
     # Type: AWS::Serverless::Api
     # Properties:
@@ -107,16 +135,30 @@ Resources:
     #       MyCognitoAuthorizer:
     #         UserPoolArn: !GetAtt CognitoPool.Arn
 
-Outputs:
-  # ServerlessRestApi is an implicit API created out of Events key under Serverless::Function
-  # Find out more about other implicit resources you can reference within SAM
-  # https://github.com/awslabs/serverless-application-model/blob/master/docs/internals/generated_resources.rst#api
-  HelloWorldApi:
-    Description: "API Gateway endpoint URL for Prod stage for Hello World function"
-    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/hello/"
-  HelloWorldFunction:
-    Description: "Hello World Lambda Function ARN"
-    Value: !GetAtt HelloWorldFunction.Arn
-  HelloWorldFunctionIamRole:
-    Description: "Implicit IAM Role created for Hello World function"
-    Value: !GetAtt HelloWorldFunctionRole.Arn
+  # HelloWorldFunction:
+  #   Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+  #   Properties:
+  #     CodeUri: hello_world/
+  #     Handler: app.lambda_handler
+  #     Runtime: python3.8
+  #     Architectures:
+  #       - x86_64
+  #     Events:
+  #       HelloWorld:
+  #         Type: Api # More info about API Event Source: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#api
+  #         Properties:
+  #           Path: /hello
+  #           Method: get
+  #           # Auth:
+  #           #   Authorizers:
+  #           #     MyCognitoAuth:
+  #           #       AuthorizationScopes:
+  #           #         - scope1
+  #           #         - scope2
+  #           #       UserPoolArn:
+  #           #         Fn::GetAtt:
+  #           #           - MyCognitoUserPool
+  #           #           - Arn
+  #           #       Identity:
+  #           #         Header: MyAuthorizationHeader
+  #           #         ValidationExpression: myauthvalidationexpression
