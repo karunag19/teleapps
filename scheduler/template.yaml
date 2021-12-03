@@ -91,7 +91,40 @@ Resources:
           Properties:
             Path: /update_token
             Method: 'Get'      
-
+  ScheduledFunction:
+    Type: AWS::Serverless::Function 
+    Properties:
+      FunctionName: Scheduled
+      Description: List all scheduled task
+      Role: arn:aws:iam::070618480609:role/TeleApps-Schedule
+      CodeUri: genesys/
+      Handler: g_main.lambda_handler
+      Layers:
+        - !Ref AppDepLayer
+      Runtime: python3.8
+      Events:
+        GetUsersAPI:
+          Type: Api 
+          Properties:
+            Path: /scheduled
+            Method: 'Get' 
+  TaskFunction:
+    Type: AWS::Serverless::Function 
+    Properties:
+      FunctionName: Task
+      Description: Get Task detail
+      Role: arn:aws:iam::070618480609:role/TeleApps-Schedule
+      CodeUri: genesys/
+      Handler: g_main.lambda_handler
+      Layers:
+        - !Ref AppDepLayer
+      Runtime: python3.8
+      Events:
+        GetUsersAPI:
+          Type: Api 
+          Properties:
+            Path: /task/{proxy+}
+            Method: 'Get'             
   AppDepLayer:
       Type: AWS::Serverless::LayerVersion
       Properties:
@@ -103,6 +136,20 @@ Resources:
           LicenseInfo: 'MIT'
           RetentionPolicy: Retain
 
+  HelloWorldFunction:
+    Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+    Properties:
+      CodeUri: hello_world/
+      Handler: app.lambda_handler
+      Runtime: python3.8
+      Architectures:
+        - x86_64
+      Events:
+        HelloWorld:
+          Type: Api # More info about API Event Source: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#api
+          Properties:
+            Path: /hello
+            Method: get
 
 Outputs:
   # ServerlessRestApi is an implicit API created out of Events key under Serverless::Function

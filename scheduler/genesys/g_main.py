@@ -3,6 +3,7 @@ import boto3
 import json
 import logging
 import time
+from boto3.dynamodb.conditions import Key
 
 secret_name_client = "karuna_secret_key"
 secret_name_token = "g_access_key"
@@ -29,8 +30,12 @@ def lambda_handler(event, context):
             result = get_skills()
         elif event['httpMethod'] == "GET" and event['path'] == "/update_token":
             result = update_token()
+        elif event['httpMethod'] == "GET" and event['path'] == "/scheduled":
+            result = get_scheduled_task()
+        elif event['httpMethod'] == "GET" and event['path'].startswith('/task'):
+            result = get_task("task1")            
         else:
-            result = {"Error": "Invalid method type"}          
+            result = {"Error": f"Invalid method or path - method: {event['httpMethod']}, path:{event['path']}"}          
 
         data = get_result(0, result)
         return {
@@ -169,3 +174,37 @@ def get_token():
         return  response_json      
     except Exception as e:
         raise e
+
+def get_scheduled():
+    try:
+        dynamodb = boto3.resource(
+            'dynamodb', 
+            region_name=region,
+        )
+        table = dynamodb.Table('scheduled_task')
+        response = response = table.query(
+            KeyConditionExpression=Key('task').eq('task')
+        )
+        response_json = response
+        print(response_json)
+
+        return response_json   
+    except Exception as e:
+        raise e          
+
+def get_task(task_name):
+    try:
+        dynamodb = boto3.resource(
+            'dynamodb', 
+            region_name=region,
+        )
+        table = dynamodb.Table('task_details')
+        response = response = table.query(
+            KeyConditionExpression=Key('task_name').eq('task1')
+        )
+        response_json = response
+        print(response_json)
+
+        return response_json   
+    except Exception as e:
+        raise e  

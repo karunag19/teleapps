@@ -9,27 +9,13 @@ Globals:
   Function:
     Timeout: 3
 Resources:
-  HelloWorldFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      CodeUri: s3://deployment-teleapps-schedule/37e8f1a842dc88dd8b563aafcd58cdc3
-      Handler: app.lambda_handler
-      Runtime: python3.8
-      Architectures:
-      - x86_64
-      Events:
-        HelloWorld:
-          Type: Api
-          Properties:
-            Path: /hello
-            Method: get
   UsersFunction:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: Users
       Description: Create, Delete, List & Reset admin users
       Role: arn:aws:iam::070618480609:role/TeleApps-Schedule
-      CodeUri: s3://deployment-teleapps-schedule/5ef342af9b9f87248cd64172fc05fa8d
+      CodeUri: s3://deployment-teleapps-schedule/83708621faa39460e3c50ff564910c40
       Handler: main.lambda_handler
       Runtime: python3.8
       Events:
@@ -44,7 +30,7 @@ Resources:
       FunctionName: ResetPassword
       Description: ResetPassword - admin users
       Role: arn:aws:iam::070618480609:role/TeleApps-Schedule
-      CodeUri: s3://deployment-teleapps-schedule/5ef342af9b9f87248cd64172fc05fa8d
+      CodeUri: s3://deployment-teleapps-schedule/83708621faa39460e3c50ff564910c40
       Handler: main.lambda_handler
       Runtime: python3.8
       Events:
@@ -53,6 +39,81 @@ Resources:
           Properties:
             Path: /password_reset
             Method: POST
+  AgentFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: Agent
+      Description: List all genesys agents
+      Role: arn:aws:iam::070618480609:role/TeleApps-Schedule
+      CodeUri: s3://deployment-teleapps-schedule/96b237e602437082cc48726998d39d5e
+      Handler: g_main.lambda_handler
+      Layers:
+      - Ref: AppDepLayer
+      Runtime: python3.8
+      Events:
+        GetUsersAPI:
+          Type: Api
+          Properties:
+            Path: /agents
+            Method: Get
+  SkillFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: Skill
+      Description: List all genesys agents
+      Role: arn:aws:iam::070618480609:role/TeleApps-Schedule
+      CodeUri: s3://deployment-teleapps-schedule/96b237e602437082cc48726998d39d5e
+      Handler: g_main.lambda_handler
+      Layers:
+      - Ref: AppDepLayer
+      Runtime: python3.8
+      Events:
+        GetUsersAPI:
+          Type: Api
+          Properties:
+            Path: /skills
+            Method: Get
+  TokenFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: Token
+      Description: List all genesys agents
+      Role: arn:aws:iam::070618480609:role/TeleApps-Schedule
+      CodeUri: s3://deployment-teleapps-schedule/96b237e602437082cc48726998d39d5e
+      Handler: g_main.lambda_handler
+      Layers:
+      - Ref: AppDepLayer
+      Runtime: python3.8
+      Events:
+        GetUsersAPI:
+          Type: Api
+          Properties:
+            Path: /update_token
+            Method: Get
+  AppDepLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: sam-app-dependencies
+      Description: Dependencies for sam app [requets]
+      ContentUri: s3://deployment-teleapps-schedule/7a12df4c90085c09bc932f2af5ea166e
+      CompatibleRuntimes:
+      - python3.8
+      LicenseInfo: MIT
+      RetentionPolicy: Retain
+  HelloWorldFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: s3://deployment-teleapps-schedule/37e8f1a842dc88dd8b563aafcd58cdc3
+      Handler: app.lambda_handler
+      Runtime: python3.8
+      Architectures:
+      - x86_64
+      Events:
+        HelloWorld:
+          Type: Api
+          Properties:
+            Path: /hello
+            Method: get
 Outputs:
   HelloWorldApi:
     Description: API Gateway endpoint URL for Prod stage for Hello World function
