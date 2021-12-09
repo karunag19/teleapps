@@ -41,3 +41,8 @@ To deploy packages:
 Reference:
     https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
     
+Install Packages as Layer:
+    cd dependencies/python/lib/python3.8/site-packages/
+    pip install <package name> -t .
+    e.g
+    pip install jsonschema -t .

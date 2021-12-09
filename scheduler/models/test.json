@@ -1,0 +1,13 @@
+{
+    "$schema": "https://json-schema.org/draft-04/schema",
+    "title": "Task",
+    "description": "Scheedule a Task",
+    "type": "object",
+    "properties": {
+      "name": {
+        "description": "The unique identifier for a task",
+        "type": "string"
+      }
+    },
+    "required": [ "name"]
+  }

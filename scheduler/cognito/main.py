@@ -5,148 +5,189 @@ import logging
 from datetime import datetime
 from dateutil import tz
 from dateutil.tz import tzlocal
+from jsonschema import validate, ValidationError
 
 secret_dic = {}
+env = {
+    "secret_client_key" : "karuna_secret_key",
+    "region" : "ap-southeast-2",
+    "user_pool_id" : "ap-southeast-2_iWwopKLsU"
+}
 
 def lambda_handler(event, context):
-
     try:
-        client = get_client()
-        if event['httpMethod'] == "GET":
-            result = get_users(client)
-        elif event['httpMethod'] == "POST" and event['path'] == "/users":
-            param = json.loads(event['body'])
-            result = create_user(client, param)
-        elif event['httpMethod'] == "DELETE":
-            param = json.loads(event['body'])
-            result = delete_user(client, param)
-        elif event['httpMethod'] == "POST" and event['path'] == "/password_reset":
-            param = json.loads(event['body'])
-            result = reset_password(client, param)  
-        else:
-            result = {"Error": "Invalid method type"}          
 
-        data = get_result(0, result)
-        return {
-            "statusCode":200,
-            "body": json.dumps(data)
-        }
+        genesys = Lambda_Cognito(event, context, env)
+        result = genesys.execute_method()
+        return get_result(0, result)
+
     except Exception as e:
         logging.error(e)
-        data = get_result(1, str(e))
-        return {
-            "statusCode":200,
-            "body": json.dumps(data)
-        }
-       
+        return get_result(1, str(e))
 
 def get_result(success, data):
-        result = {}
-        result['success'] = success
-        if success == 0:
-            result['result'] = data
-        else:
-            result['error'] = data      
-        return result
+    result = {}
+    result['success'] = success
+    if success == 0:
+        result['result'] = data
+    else:
+        result['error'] = data      
+    final_result = {
+        "statusCode":200,
+        "body": json.dumps(result),
+        'headers': {
+            'Access-Control-Allow-Headers': 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token',
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'OPTIONS,POST,GET,PUT,DELETE'
+        }
+    } 
+    return final_result        
 
-def get_client():
-    try:
-        global secret_dic
-        secret_name = "karuna_secret_key"
-        region = 'ap-southeast-2'
+class Lambda_Cognito():
 
-        client = boto3.client(
-            'secretsmanager', 
-            region_name=region,
-        )
-        secret_response = client.get_secret_value(
-                SecretId=secret_name
+    def __init__(self, event, context, env):
+        self.event = event
+        self.context = context
+        self.env = env
+
+        try:
+            client = boto3.client(
+                'secretsmanager', 
+                region_name = self.env['region'],
+            )
+            secret_response = client.get_secret_value(
+                    SecretId = self.env["secret_client_key"]
+                )
+            self.secret_client = json.loads(secret_response['SecretString'])
+
+            self.client = boto3.client(
+                'cognito-idp', 
+                region_name=self.env['region'],
+                aws_access_key_id = self.secret_client['CLIENT_ID'],
+                aws_secret_access_key= self.secret_client['SECRET_KEY']
             )
 
-        secret_dic = json.loads(secret_response['SecretString'])
-        keyId = secret_dic['CLIENT_ID']
-        sKeyId = secret_dic['SECRET_KEY']
+        except Exception as e:
+            raise e 
 
-        client = boto3.client(
-            'cognito-idp', 
-            region_name=region,
-            aws_access_key_id = keyId,
-            aws_secret_access_key= sKeyId
-        )
-        return client
-    except Exception as e:
-        raise e       
+    def execute_method(self):
+        try:
+            if isinstance(self.event, dict) and "path" in self.event:
+                param = self.event.get('path','').split('/')
+                print(param)
+                if len(param) < 3:
+                    raise Exception(f"Invalid method name")
+                handler_name = f"{self.event.get('httpMethod','').lower()}_{param[2]}"
+                print(handler_name)
+                handler = getattr(self, handler_name, None)
+                if handler:
+                    if len(param) > 3:
+                        result = handler(param = param[3])
+                    else:
+                        result = handler()
+                else:
+                    raise Exception(f"Invalid method type({self.event.get('httpMethod','')}) or name({param[2]})")
+                return result
+        except Exception as e:
+            raise e        
 
-def get_users(client):
-    try:
+    def get_users(self):
+        try:
+            response = self.client.list_users(
+                UserPoolId = self.env['user_pool_id'],
+            )
+            user_array = [] 
+            for user in response['Users']:
+                user_json = {}
+                user_json = user
+                user_json['UserCreateDate'] = str(user['UserCreateDate'])
+                user_json['UserLastModifiedDate'] = str(user['UserLastModifiedDate'])
+                user_array.append(user_json)
+            return user_array    
 
-        response = client.list_users(
-            UserPoolId = 'ap-southeast-2_iWwopKLsU',
-        )
-        user_array = [] 
-        for user in response['Users']:
+        except Exception as e:
+            raise e             
+
+    def post_users(self):
+        try:
+            if self.event.get('body', None) == None:
+                raise Exception(f"You have to pass the data as JSON in body")
+            body_json = json.loads(self.event.get('body'))
+            self.__validate_schema("user_create", body_json)  
+            print("After __validate_schema")          
+            response = self.client.admin_create_user(
+                UserPoolId = self.env['user_pool_id'],
+                Username = body_json['email'],
+                TemporaryPassword = body_json['temp_password'],
+                UserAttributes = [{
+                    'Name': 'email',
+                    'Value': body_json['email']
+                },
+                {
+                    'Name': 'email_verified',
+                    'Value': 'True'
+                }]
+            )
+            print("After res[pmse")
+            print(response)
             user_json = {}
-            user_json = user
-            # Karuna - change to utc time ---working code----
-            # By default, it is showing utc time only, so we need not to convert the datetime.
-            # d_local = user['UserCreateDate']
-            # d_utc = d_local.astimezone(tz.tzutc())
-            # user_json['UserCreateDate'] = str(d_utc)
-            # ------------------------------------------------
-            user_json['UserCreateDate'] = str(user['UserCreateDate'])
-            user_json['UserLastModifiedDate'] = str(user['UserLastModifiedDate'])
-            user_array.append(user_json)
-        return user_array    
+            user_json = response['User']
+            user_json['UserCreateDate'] = str(user_json['UserCreateDate'])
+            user_json['UserLastModifiedDate'] = str(user_json['UserLastModifiedDate'])
+            return user_json         
+        except Exception as e:
+            raise e            
 
-    except Exception as e:
-        raise e        
+    def delete_users(self):
+        try:
+            if self.event.get('body', None) == None:
+                raise Exception(f"You have to pass the data as JSON in body")
+            body_json = json.loads(self.event.get('body'))
+            self.__validate_schema("user_delete", body_json) 
+            response = self.client.admin_delete_user(
+                UserPoolId = self.env['user_pool_id'],
+                Username = body_json['email'],
+            )
+            return response         
+        except Exception as e:
+            raise e 
 
-def create_user(client, param):
-    try:
-        global secret_dic
-        user_pool_id = secret_dic['USER_POOL_ID']
-        response = client.admin_create_user(
-            UserPoolId = user_pool_id,
-            Username = param['email'],
-            TemporaryPassword = param['temp_password'],
-            UserAttributes = [{
-                'Name': 'email',
-                'Value': param['email']
-            },
-            {
-                'Name': 'email_verified',
-                'Value': 'True'
-            }]
-        )
-        user_json = {}
-        user_json = response['User']
-        user_json['UserCreateDate'] = str(user_json['UserCreateDate'])
-        user_json['UserLastModifiedDate'] = str(user_json['UserLastModifiedDate'])
-        return user_json         
-    except Exception as e:
-        raise e
+    def __validate_schema(self, schema_name, body_json):
+        try:
+            print("START __validate_schema")
+            if schema_name == "user_create":
+                schema = {
+                    "type" : "object",
+                    "properties" : {
+                        "email" : {"type" : "string"},
+                        "temp_password" : {"type" : "string"},
+                    },
+                    "required": [ "email", "temp_password"]
+                }
+                validate(instance=body_json, schema=schema)
+            if schema_name == "user_delete":
+                schema = {
+                    "type" : "object",
+                    "properties" : {
+                        "email" : {"type" : "string"},
+                    },
+                    "required": [ "email"]
+                }
+                validate(instance=body_json, schema=schema)
+            print("END __validate_schema")
+        except ValidationError as e:
+            raise Exception (f"Invalid json input - message: {e.message}, Error at: {e.json_path}, Valid Schema: {e.schema}") 
 
-def delete_user(client, param):
-    try:
-        global secret_dic
-        user_pool_id = secret_dic['USER_POOL_ID']
-        response = client.admin_delete_user(
-            UserPoolId = user_pool_id,
-            Username = param['email'],
-        )
-        return response         
-    except Exception as e:
-        raise e        
-
-def reset_password(client, param):
-    try:
-        global secret_dic
-        user_pool_id = secret_dic['USER_POOL_ID']
-        response = client.admin_reset_user_password(
-            UserPoolId = user_pool_id,
-            Username = param['email'],
-        )
-        return response
-        # return {'name': 'Karuna'}         
-    except Exception as e:
-        raise e        
+    # def post_reset_password(self):
+    #     try:
+    #         if self.event.get('body', None) == None:
+    #             raise Exception(f"You have to pass the data as JSON in body")
+    #         body_json = json.loads(self.event.get('body'))
+    #         self.__validate_schema("user_delete", body_json) 
+    #         response = self.client.admin_reset_user_password(
+    #             UserPoolId = self.env['user_pool_id'],
+    #             Username = body_json['email'],
+    #         )
+    #         return response
+    #     except Exception as e:
+    #         raise e       

@@ -1,0 +1,33 @@
+{
+    "$schema": "https://json-schema.org/draft-04/schema",
+    "title": "Task",
+    "description": "Scheedule a Task",
+    "type": "object",
+    "properties": {
+      "name": {
+        "description": "The unique identifier for a task",
+        "type": "string"
+      },
+      "repeat_type": {
+        "description": "Type - D(Daily), W(Weekly), M(Monthly), Y(Yearly)",
+        "type": "string",
+        "enum": ["D", "W", "M", "Y"]
+      },
+      "run_time": {
+        "description": "Run time - temp we accesspt only number",
+        "type": "number"
+      },
+      "repet_on": {
+        "description": "Repet ON: S,M,T,W,T,F,S",
+        "type": "array",
+        "items": {
+          "type": "string",
+          "enum": ["1", "0"]
+        },
+        "minItems": 7,
+        "maxItems": 7,
+        "uniqueItems": false
+      }
+    },
+    "required": [ "name", "repeat_type", "repet_on" ]
+  }

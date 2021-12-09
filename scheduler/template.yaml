@@ -18,33 +18,21 @@ Resources:
       Role: arn:aws:iam::070618480609:role/TeleApps-Schedule
       CodeUri: cognito/
       Handler: main.lambda_handler
+      Layers:
+        - !Ref AppDepLayer       
       Runtime: python3.8
       Events:
         GetUsersAPI:
           Type: Api 
           Properties:
-            Path: /users
+            Path: /cognito/{proxy+}
             Method: 'ANY'
-  ResetPasswordFunction:
+
+  GenesysFunction:
     Type: AWS::Serverless::Function 
     Properties:
-      FunctionName: ResetPassword
-      Description: ResetPassword - admin users
-      Role: arn:aws:iam::070618480609:role/TeleApps-Schedule
-      CodeUri: cognito/
-      Handler: main.lambda_handler
-      Runtime: python3.8
-      Events:
-        GetUsersAPI:
-          Type: Api 
-          Properties:
-            Path: /password_reset
-            Method: 'POST'
-  AgentFunction:
-    Type: AWS::Serverless::Function 
-    Properties:
-      FunctionName: Agent
-      Description: List all genesys agents
+      FunctionName: Genesys
+      Description: All Genesys related functions like get agents, skill, schedule, task etc..
       Role: arn:aws:iam::070618480609:role/TeleApps-Schedule
       CodeUri: genesys/
       Handler: g_main.lambda_handler
@@ -55,76 +43,9 @@ Resources:
         GetUsersAPI:
           Type: Api 
           Properties:
-            Path: /agents
-            Method: 'Get' 
-  SkillFunction:
-    Type: AWS::Serverless::Function 
-    Properties:
-      FunctionName: Skill
-      Description: List all genesys agents
-      Role: arn:aws:iam::070618480609:role/TeleApps-Schedule
-      CodeUri: genesys/
-      Handler: g_main.lambda_handler
-      Layers:
-        - !Ref AppDepLayer      
-      Runtime: python3.8
-      Events:
-        GetUsersAPI:
-          Type: Api 
-          Properties:
-            Path: /skills
-            Method: 'Get' 
-  TokenFunction:
-    Type: AWS::Serverless::Function 
-    Properties:
-      FunctionName: Token
-      Description: List all genesys agents
-      Role: arn:aws:iam::070618480609:role/TeleApps-Schedule
-      CodeUri: genesys/
-      Handler: g_main.lambda_handler
-      Layers:
-        - !Ref AppDepLayer
-      Runtime: python3.8
-      Events:
-        GetUsersAPI:
-          Type: Api 
-          Properties:
-            Path: /update_token
-            Method: 'Get'      
-  ScheduledFunction:
-    Type: AWS::Serverless::Function 
-    Properties:
-      FunctionName: Scheduled
-      Description: List all scheduled task
-      Role: arn:aws:iam::070618480609:role/TeleApps-Schedule
-      CodeUri: genesys/
-      Handler: g_main.lambda_handler
-      Layers:
-        - !Ref AppDepLayer
-      Runtime: python3.8
-      Events:
-        GetUsersAPI:
-          Type: Api 
-          Properties:
-            Path: /scheduled
-            Method: 'Get' 
-  TaskFunction:
-    Type: AWS::Serverless::Function 
-    Properties:
-      FunctionName: Task
-      Description: Get Task detail
-      Role: arn:aws:iam::070618480609:role/TeleApps-Schedule
-      CodeUri: genesys/
-      Handler: g_main.lambda_handler
-      Layers:
-        - !Ref AppDepLayer
-      Runtime: python3.8
-      Events:
-        GetUsersAPI:
-          Type: Api 
-          Properties:
-            Path: /task/{proxy+}
-            Method: 'Get'             
+            Path: /genesys/{proxy+}
+            Method: 'ANY'            
+
   AppDepLayer:
       Type: AWS::Serverless::LayerVersion
       Properties:
