@@ -46,3 +46,4 @@ Install Packages as Layer:
     pip install <package name> -t .
     e.g
     pip install jsonschema -t .
+    pip install python-dateutil -t .
