@@ -208,8 +208,11 @@ class Lambda_Genesys():
                 response = response = table.query(
                     KeyConditionExpression=Key('task').eq('task') & Key('name').eq(param)
                 )
-            # response_json = response['Items']
-            response_json = response
+            response_json = response['Items']
+            # response_json = response
+            for item in response_json:
+                item['last_runtime'] = str(item['last_runtime']) 
+                item['next_runtime'] = str(item['next_runtime'])
             return response_json   
         except Exception as e:
             raise e 
@@ -220,29 +223,29 @@ class Lambda_Genesys():
                 raise Exception(f"You have to pass the data as JSON in body")
             body_json = json.loads(self.event.get('body'))
             self.__validate_schema("scheduled", body_json, extn=True)
-            # dynamodb = boto3.resource(
-            #     'dynamodb', 
-            #     region_name = self.env['region'],
-            # )
-            # table = dynamodb.Table('scheduled_task')
-            # response = table.get_item(
-            #     Key={
-            #         'task': 'task',
-            #         'name': body_json['name']
-            #     }
-            # )
-            # if "Item" in response:
-            #     raise Exception(f"Task with the same name: {body_json['name']} is already available")
+            dynamodb = boto3.resource(
+                'dynamodb', 
+                region_name = self.env['region'],
+            )
+            table = dynamodb.Table('scheduled_task')
+            response = table.get_item(
+                Key={
+                    'task': 'task',
+                    'name': body_json['name']
+                }
+            )
+            if "Item" in response:
+                raise Exception(f"Task with the same name: {body_json['name']} is already available")
             
             next_runtime = self.__calc_nextruntime(body_json)
-            print(f"--------NEXT RUN TIME: {next_runtime}-------------")
-            # body_json['next_runtime'] = "11111"
-            # body_json['last_runtime'] = "00000"
-            # response = table.put_item(
-            #     Item=body_json
-            # )
-            # response_json = response
-            # return response_json   
+            epoch_next_runtime = int(next_runtime.timestamp())
+            body_json['next_runtime'] = epoch_next_runtime
+            body_json['last_runtime'] = 0
+            response = table.put_item(
+                Item=body_json
+            )
+            response_json = response
+            return response_json   
 
             return body_json
         except Exception as e:
