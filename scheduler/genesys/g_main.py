@@ -277,9 +277,8 @@ class Lambda_Genesys():
             )
             response_json = response.get('Attributes', None) 
             if response_json != None:
-                response_json['last_runtime'] = str(response_json['last_runtime']) 
-                response_json['next_runtime'] = str(response_json['next_runtime'])            
-                return response_json   
+                response['Attributes']['last_runtime'] = str(response_json['last_runtime']) 
+                response['Attributes']['next_runtime'] = str(response_json['next_runtime'])            
             return response
         except Exception as e:
             raise e 
@@ -342,8 +341,8 @@ class Lambda_Genesys():
             table = dynamodb.Table('Genesys_Scheduled_Detais')
             response = table.delete_item(
                 Key={
-                    'scheduled_name': 'scheduled_name',
-                    'agent_name': 'agent_name'
+                    'scheduled_name': body_json['scheduled_name'],
+                    'agent_name': body_json['agent_name']
                 },
                 ReturnValues="ALL_OLD"
             )
