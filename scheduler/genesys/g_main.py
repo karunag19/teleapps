@@ -9,6 +9,8 @@ from dateutil.relativedelta import relativedelta
 from boto3.dynamodb.conditions import Key
 from jsonschema import validate, ValidationError, Draft7Validator, validators
 
+from concurrent.futures import ProcessPoolExecutor
+
 genesys_environment = "mypurecloud.com.au"
 token_url = f"https://login.{genesys_environment}/oauth/token"
 skills_url = f"https://api.{genesys_environment}/api/v2/routing/skills"
@@ -52,6 +54,9 @@ def get_result(success, data):
         }
     } 
     return final_result  
+
+
+
 
 class Lambda_Genesys():
     
@@ -199,14 +204,14 @@ class Lambda_Genesys():
                 'dynamodb', 
                 region_name = self.env['region'],
             )
-            table = dynamodb.Table('scheduled_task')
+            table = dynamodb.Table('Genesys_Scheduled')
             if param == None:
                 response = response = table.query(
-                    KeyConditionExpression=Key('task').eq('task') 
+                    KeyConditionExpression=Key('p_key').eq('scheduled') 
                 )
             else:
                 response = response = table.query(
-                    KeyConditionExpression=Key('task').eq('task') & Key('name').eq(param)
+                    KeyConditionExpression=Key('p_key').eq('scheduled') & Key('name').eq(param)
                 )
             response_json = response['Items']
             # response_json = response
@@ -227,10 +232,10 @@ class Lambda_Genesys():
                 'dynamodb', 
                 region_name = self.env['region'],
             )
-            table = dynamodb.Table('scheduled_task')
+            table = dynamodb.Table('Genesys_Scheduled')
             response = table.get_item(
                 Key={
-                    'task': 'task',
+                    'p_key': 'scheduled',
                     'name': body_json['name']
                 }
             )
@@ -239,6 +244,7 @@ class Lambda_Genesys():
             
             next_runtime = self.__calc_nextruntime(body_json)
             epoch_next_runtime = int(next_runtime.timestamp())
+            body_json['p_key'] = "scheduled"
             body_json['next_runtime'] = epoch_next_runtime
             body_json['last_runtime'] = 0
             response = table.put_item(
@@ -256,20 +262,25 @@ class Lambda_Genesys():
             if self.event.get('body', None) == None:
                 raise Exception(f"You have to pass the data as JSON in body")
             body_json = json.loads(self.event.get('body'))
-            self.__validate_schema("scheduled", body_json, extn=True)
+            self.__validate_schema("del_scheduled", body_json)
             dynamodb = boto3.resource(
                 'dynamodb', 
                 region_name = self.env['region'],
             )
-            table = dynamodb.Table('scheduled_task')
+            table = dynamodb.Table('Genesys_Scheduled')
             response = table.delete_item(
                 Key={
-                    'task': 'task',
-                    'name': 'task5'
-                }
+                    'p_key': 'scheduled',
+                    'name': body_json['name']
+                },
+                ReturnValues="ALL_OLD"
             )
-            response_json = response
-            return response_json   
+            response_json = response.get('Attributes', None) 
+            if response_json != None:
+                response_json['last_runtime'] = str(response_json['last_runtime']) 
+                response_json['next_runtime'] = str(response_json['next_runtime'])            
+                return response_json   
+            return response
         except Exception as e:
             raise e 
 
@@ -282,19 +293,69 @@ class Lambda_Genesys():
                 'dynamodb', 
                 region_name = self.env['region'],
             )
-            table = dynamodb.Table('task_details')
+            table = dynamodb.Table('Genesys_Scheduled_Detais')
             response = response = table.query(
-                KeyConditionExpression=Key('task_name').eq(param)
+                KeyConditionExpression=Key('scheduled_name').eq(param)
             )
             response_json = response
             return response_json   
         except Exception as e:
             raise e 
 
+    def post_task(self):
+        try:
+            if self.event.get('body', None) == None:
+                raise Exception(f"You have to pass the data as JSON in body")
+            body_json = json.loads(self.event.get('body'))
+            self.__validate_schema("task", body_json)
+            dynamodb = boto3.resource(
+                'dynamodb', 
+                region_name = self.env['region'],
+            )
+            table = dynamodb.Table('Genesys_Scheduled_Detais')
+            response = table.get_item(
+                Key={
+                    'scheduled_name': body_json['scheduled_name'],
+                    'agent_name': body_json['agent_name']
+                }
+            )
+            if "Item" in response:
+                raise Exception(f"Task with the same name: {body_json['task_name']} with agent_name: {body_json['agent_name']}  is already available")
+            response = table.put_item(
+                Item=body_json
+            )
+            response_json = response
+            return response_json   
+        except Exception as e:
+            raise e 
+
+    def delete_task(self):
+        try:
+            if self.event.get('body', None) == None:
+                raise Exception(f"You have to pass the data as JSON in body")
+            body_json = json.loads(self.event.get('body'))
+            self.__validate_schema("del_task", body_json)
+            dynamodb = boto3.resource(
+                'dynamodb', 
+                region_name = self.env['region'],
+            )
+            table = dynamodb.Table('Genesys_Scheduled_Detais')
+            response = table.delete_item(
+                Key={
+                    'scheduled_name': 'scheduled_name',
+                    'agent_name': 'agent_name'
+                },
+                ReturnValues="ALL_OLD"
+            )
+            response_json = response
+            return response_json   
+        except Exception as e:
+            raise e
+
     def __validate_schema(self, schema, body_json, extn = False):
         try:
             if schema == "scheduled":
-                scheduled = {
+                schema_obj = {
                     "type" : "object",
                     "properties" : {
                         "name" : {"type" : "string"},
@@ -305,10 +366,49 @@ class Lambda_Genesys():
                     },
                     "required": [ "name", "repet_on", "repet_type", "start_dt", "run_time"]
                 }
-                if extn:
-                    self.__extn_validate(instance=body_json, schema=scheduled)
-                else:
-                    validate(instance=body_json, schema=scheduled)
+            elif schema == "del_scheduled":
+                schema_obj = {
+                    "type" : "object",
+                    "properties" : {
+                        "name" : {"type" : "string"},
+                    },
+                    "required": [ "name"]
+                }                
+            elif schema == "task":
+                schema_obj = {
+                    "type" : "object",
+                    "properties" : {
+                        "scheduled_name" : {"type" : "string"},
+                        "agent_name" : {"type" : "string"},
+                        "agent_id" : {"type" : "string"},
+                        "skills" : {
+                            "type" : "array", 
+                            "items" : {
+                                "type" : "object",
+                                "properties": {
+                                    "name" :  {"type" : "string"},
+                                    "skill_id" :  {"type" : "string"},
+                                    "proficiency" :  {"type" : "string"}
+                                }
+                            },
+                            "minItems": 1
+                        }
+                    },
+                    "required": [ "scheduled_name", "agent_name", "agent_id", "skills"]
+                }                
+            elif schema == "del_task":
+                schema_obj = {
+                    "type" : "object",
+                    "properties" : {
+                        "scheduled_name" : {"type" : "string"},
+                        "agent_name" : {"type" : "string"}
+                    },
+                    "required": [ "scheduled_name", "agent_name"]
+                }                  
+            if extn:
+                self.__extn_validate(instance=body_json, schema=schema_obj)
+            else:
+                validate(instance=body_json, schema=schema_obj)
         except ValidationError as e:
             raise Exception (f"Invalid json input - message: {e.message}, Error at: {e.json_path}, Valid Schema: {e.schema}") 
     
@@ -405,5 +505,12 @@ class Lambda_Genesys():
                 return dt_schedule
             else:
                 return dt_start_datetime
+        except Exception as e:
+            raise e 
+
+    def __process_task(self, param):
+        try:
+            pass
+
         except Exception as e:
             raise e 
