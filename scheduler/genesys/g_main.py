@@ -286,7 +286,7 @@ class Lambda_Genesys():
     def get_task(self, param=None):
         try:
             if param == None:
-                raise Exception(f"Missing task name in the path(/genesys/task/<task name>")
+                raise Exception(f"Missing task name in the path(/genesys/task/<schedule name>")
 
             dynamodb = boto3.resource(
                 'dynamodb', 
@@ -351,6 +351,75 @@ class Lambda_Genesys():
         except Exception as e:
             raise e
 
+    def get_skill(self, param=None):
+        try:
+            if param == None:
+                raise Exception(f"Missing task name in the path(/genesys/skill/<schedule name>")
+
+            dynamodb = boto3.resource(
+                'dynamodb', 
+                region_name = self.env['region'],
+            )
+            table = dynamodb.Table('Genesys_Scheduled_Skills')
+            response = response = table.query(
+                KeyConditionExpression=Key('scheduled_name').eq(param)
+            )
+            response_json = response
+            return response_json   
+        except Exception as e:
+            raise e 
+
+    def post_skill(self):
+        try:
+            if self.event.get('body', None) == None:
+                raise Exception(f"You have to pass the data as JSON in body")
+            body_json = json.loads(self.event.get('body'))
+            self.__validate_schema("skill", body_json)
+            dynamodb = boto3.resource(
+                'dynamodb', 
+                region_name = self.env['region'],
+            )
+            table = dynamodb.Table('Genesys_Scheduled_Skills')
+            response = table.get_item(
+                Key={
+                    'scheduled_name': body_json['scheduled_name'],
+                    'skill_name': body_json['skill_name']
+                }
+            )
+            if "Item" in response:
+                raise Exception(f"Task with the same name: {body_json['scheduled_name']} with skill_name: {body_json['skill_name']}  is already available")
+            response = table.put_item(
+                Item=body_json
+            )
+            response_json = response
+            return response_json   
+        except Exception as e:
+            raise e 
+
+    def delete_skill(self):
+        try:
+            if self.event.get('body', None) == None:
+                raise Exception(f"You have to pass the data as JSON in body")
+            body_json = json.loads(self.event.get('body'))
+            self.__validate_schema("del_skill", body_json)
+            print(body_json)
+            dynamodb = boto3.resource(
+                'dynamodb', 
+                region_name = self.env['region'],
+            )
+            table = dynamodb.Table('Genesys_Scheduled_Skills')
+            response = table.delete_item(
+                Key={
+                    'scheduled_name': body_json['scheduled_name'],
+                    'skill_name': body_json['skill_name']
+                },
+                ReturnValues="ALL_OLD"
+            )
+            response_json = response
+            return response_json   
+        except Exception as e:
+            raise e
+
     def __validate_schema(self, schema, body_json, extn = False):
         try:
             if schema == "scheduled":
@@ -403,7 +472,26 @@ class Lambda_Genesys():
                         "agent_name" : {"type" : "string"}
                     },
                     "required": [ "scheduled_name", "agent_name"]
-                }                  
+                }  
+            elif schema == "skill":
+                schema_obj = {
+                    "type" : "object",
+                    "properties" : {
+                        "scheduled_name" : {"type" : "string"},
+                        "skill_name" : {"type" : "string"},
+                        "skill_id" : {"type" : "string"}      
+                    },
+                    "required": [ "scheduled_name", "skill_name", "skill_id"]
+                }     
+            elif schema == "del_skill":
+                schema_obj = {
+                    "type" : "object",
+                    "properties" : {
+                        "scheduled_name" : {"type" : "string"},
+                        "skill_name" : {"type" : "string"}
+                    },
+                    "required": [ "scheduled_name", "skill_name"]
+                }                                                                
             if extn:
                 self.__extn_validate(instance=body_json, schema=schema_obj)
             else:
