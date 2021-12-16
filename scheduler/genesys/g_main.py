@@ -6,7 +6,7 @@ import time
 from datetime import datetime
 from datetime import date
 from dateutil.relativedelta import relativedelta
-from boto3.dynamodb.conditions import Key
+from boto3.dynamodb.conditions import Key, Attr
 from jsonschema import validate, ValidationError, Draft7Validator, validators
 
 from concurrent.futures import ProcessPoolExecutor
@@ -15,6 +15,8 @@ genesys_environment = "mypurecloud.com.au"
 token_url = f"https://login.{genesys_environment}/oauth/token"
 skills_url = f"https://api.{genesys_environment}/api/v2/routing/skills"
 agents_url = f"https://api.{genesys_environment}/api/v2/users"
+# routing_url = f"https://api.{genesys_environment}/api/v2/users/AGENT_ID/routingskills" 
+routing_url = f"https://api.{genesys_environment}/api/v2/users/AGENT_ID/routingskills/bulk" 
 env = {
     "secret_client_key" : "karuna_secret_key",
     "secret_token_key" : "g_access_key",
@@ -22,6 +24,7 @@ env = {
     "token_url" : token_url,
     "skills_url" : skills_url,
     "agents_url" : agents_url,
+    "routing_url" : routing_url,
     "region" : "ap-southeast-2"
 }
 
@@ -204,14 +207,14 @@ class Lambda_Genesys():
                 'dynamodb', 
                 region_name = self.env['region'],
             )
-            table = dynamodb.Table('Genesys_Scheduled')
+            table = dynamodb.Table('Genesys_scheduled')
             if param == None:
                 response = response = table.query(
                     KeyConditionExpression=Key('p_key').eq('scheduled') 
                 )
             else:
                 response = response = table.query(
-                    KeyConditionExpression=Key('p_key').eq('scheduled') & Key('name').eq(param)
+                    KeyConditionExpression=Key('p_key').eq('scheduled') & Key('scheduled_name').eq(param)
                 )
             response_json = response['Items']
             # response_json = response
@@ -232,15 +235,15 @@ class Lambda_Genesys():
                 'dynamodb', 
                 region_name = self.env['region'],
             )
-            table = dynamodb.Table('Genesys_Scheduled')
+            table = dynamodb.Table('Genesys_scheduled')
             response = table.get_item(
                 Key={
                     'p_key': 'scheduled',
-                    'name': body_json['name']
+                    'scheduled_name': body_json['scheduled_name']
                 }
             )
             if "Item" in response:
-                raise Exception(f"Task with the same name: {body_json['name']} is already available")
+                raise Exception(f"assignment with the same name: {body_json['scheduled_name']} is already available")
             
             next_runtime = self.__calc_nextruntime(body_json)
             epoch_next_runtime = int(next_runtime.timestamp())
@@ -267,11 +270,11 @@ class Lambda_Genesys():
                 'dynamodb', 
                 region_name = self.env['region'],
             )
-            table = dynamodb.Table('Genesys_Scheduled')
+            table = dynamodb.Table('Genesys_scheduled')
             response = table.delete_item(
                 Key={
                     'p_key': 'scheduled',
-                    'name': body_json['name']
+                    'scheduled_name': body_json['scheduled_name']
                 },
                 ReturnValues="ALL_OLD"
             )
@@ -283,43 +286,43 @@ class Lambda_Genesys():
         except Exception as e:
             raise e 
 
-    def get_task(self, param=None):
+    def get_assignment(self, param=None):
         try:
             if param == None:
-                raise Exception(f"Missing task name in the path(/genesys/task/<schedule name>")
+                raise Exception(f"Missing assignment name in the path(/genesys/assignment/<schedule name>")
 
             dynamodb = boto3.resource(
                 'dynamodb', 
                 region_name = self.env['region'],
             )
-            table = dynamodb.Table('Genesys_Scheduled_Detais')
+            table = dynamodb.Table('Genesys_assignment')
             response = response = table.query(
-                KeyConditionExpression=Key('scheduled_name').eq(param)
+                KeyConditionExpression=Key('assignment_name').eq(param)
             )
             response_json = response
             return response_json   
         except Exception as e:
             raise e 
 
-    def post_task(self):
+    def post_assignment(self):
         try:
             if self.event.get('body', None) == None:
                 raise Exception(f"You have to pass the data as JSON in body")
             body_json = json.loads(self.event.get('body'))
-            self.__validate_schema("task", body_json)
+            self.__validate_schema("assignment", body_json)
             dynamodb = boto3.resource(
                 'dynamodb', 
                 region_name = self.env['region'],
             )
-            table = dynamodb.Table('Genesys_Scheduled_Detais')
+            table = dynamodb.Table('Genesys_assignment')
             response = table.get_item(
                 Key={
-                    'scheduled_name': body_json['scheduled_name'],
+                    'assignment_name': body_json['assignment_name'],
                     'agent_name': body_json['agent_name']
                 }
             )
             if "Item" in response:
-                raise Exception(f"Task with the same name: {body_json['task_name']} with agent_name: {body_json['agent_name']}  is already available")
+                raise Exception(f"assignment with the same name: {body_json['assignment_name']} with agent_name: {body_json['agent_name']}  is already available")
             response = table.put_item(
                 Item=body_json
             )
@@ -328,20 +331,20 @@ class Lambda_Genesys():
         except Exception as e:
             raise e 
 
-    def delete_task(self):
+    def delete_assignment(self):
         try:
             if self.event.get('body', None) == None:
                 raise Exception(f"You have to pass the data as JSON in body")
             body_json = json.loads(self.event.get('body'))
-            self.__validate_schema("del_task", body_json)
+            self.__validate_schema("del_assignment", body_json)
             dynamodb = boto3.resource(
                 'dynamodb', 
                 region_name = self.env['region'],
             )
-            table = dynamodb.Table('Genesys_Scheduled_Detais')
+            table = dynamodb.Table('Genesys_assignment')
             response = table.delete_item(
                 Key={
-                    'scheduled_name': body_json['scheduled_name'],
+                    'assignment_name': body_json['assignment_name'],
                     'agent_name': body_json['agent_name']
                 },
                 ReturnValues="ALL_OLD"
@@ -354,15 +357,15 @@ class Lambda_Genesys():
     def get_skill(self, param=None):
         try:
             if param == None:
-                raise Exception(f"Missing task name in the path(/genesys/skill/<schedule name>")
+                raise Exception(f"Missing assignment name in the path(/genesys/skill/<schedule name>")
 
             dynamodb = boto3.resource(
                 'dynamodb', 
                 region_name = self.env['region'],
             )
-            table = dynamodb.Table('Genesys_Scheduled_Skills')
+            table = dynamodb.Table('Genesys_assignment_skill')
             response = response = table.query(
-                KeyConditionExpression=Key('scheduled_name').eq(param)
+                KeyConditionExpression=Key('assignment_name').eq(param)
             )
             response_json = response
             return response_json   
@@ -374,20 +377,20 @@ class Lambda_Genesys():
             if self.event.get('body', None) == None:
                 raise Exception(f"You have to pass the data as JSON in body")
             body_json = json.loads(self.event.get('body'))
-            self.__validate_schema("skill", body_json)
+            self.__validate_schema("assignment_skill", body_json)
             dynamodb = boto3.resource(
                 'dynamodb', 
                 region_name = self.env['region'],
             )
-            table = dynamodb.Table('Genesys_Scheduled_Skills')
+            table = dynamodb.Table('Genesys_assignment_skill')
             response = table.get_item(
                 Key={
-                    'scheduled_name': body_json['scheduled_name'],
+                    'assignment_name': body_json['assignment_name'],
                     'skill_name': body_json['skill_name']
                 }
             )
             if "Item" in response:
-                raise Exception(f"Task with the same name: {body_json['scheduled_name']} with skill_name: {body_json['skill_name']}  is already available")
+                raise Exception(f"assignment with the same name: {body_json['assignment_name']} with skill_name: {body_json['skill_name']}  is already available")
             response = table.put_item(
                 Item=body_json
             )
@@ -401,16 +404,16 @@ class Lambda_Genesys():
             if self.event.get('body', None) == None:
                 raise Exception(f"You have to pass the data as JSON in body")
             body_json = json.loads(self.event.get('body'))
-            self.__validate_schema("del_skill", body_json)
+            self.__validate_schema("del_assignment_skill", body_json)
             print(body_json)
             dynamodb = boto3.resource(
                 'dynamodb', 
                 region_name = self.env['region'],
             )
-            table = dynamodb.Table('Genesys_Scheduled_Skills')
+            table = dynamodb.Table('Genesys_assignment_skill')
             response = table.delete_item(
                 Key={
-                    'scheduled_name': body_json['scheduled_name'],
+                    'assignment_name': body_json['assignment_name'],
                     'skill_name': body_json['skill_name']
                 },
                 ReturnValues="ALL_OLD"
@@ -426,27 +429,27 @@ class Lambda_Genesys():
                 schema_obj = {
                     "type" : "object",
                     "properties" : {
-                        "name" : {"type" : "string"},
-                        "repet_on" : {"type" : "array", "items" : {"type" : "string","enum" : ["0","1"]}, "minItems": 7},
-                        "repet_type" : {"type" : "string", "enum" : ["D", "W", "M", "Y"]},
+                        "assignment_name" : {"type" : "string"},
+                        "repeat_on" : {"type" : "array", "items" : {"type" : "string","enum" : ["0","1"]}, "minItems": 7},
+                        "repeat_type" : {"type" : "string", "enum" : ["D", "W", "M", "Y"]},
                         "start_dt" : {"type" : "ex_date", "description": "Format - YYYY-MM-DD"},
-                        "run_time" : {"type" : "ex_time", "description": "Format - HH:MM"},
+                        "start_time" : {"type" : "ex_time", "description": "Format - HH:MM"},
                     },
-                    "required": [ "name", "repet_on", "repet_type", "start_dt", "run_time"]
+                    "required": [ "assignment_name", "repeat_on", "repeat_type", "start_dt", "start_time"]
                 }
             elif schema == "del_scheduled":
                 schema_obj = {
                     "type" : "object",
                     "properties" : {
-                        "name" : {"type" : "string"},
+                        "scheduled_name" : {"type" : "string"},
                     },
-                    "required": [ "name"]
+                    "required": [ "scheduled_name"]
                 }                
-            elif schema == "task":
+            elif schema == "assignment":
                 schema_obj = {
                     "type" : "object",
                     "properties" : {
-                        "scheduled_name" : {"type" : "string"},
+                        "assignment_name" : {"type" : "string"},
                         "agent_name" : {"type" : "string"},
                         "agent_id" : {"type" : "string"},
                         "skills" : {
@@ -454,43 +457,44 @@ class Lambda_Genesys():
                             "items" : {
                                 "type" : "object",
                                 "properties": {
-                                    "name" :  {"type" : "string"},
+                                    "skill_name" :  {"type" : "string"},
                                     "skill_id" :  {"type" : "string"},
                                     "proficiency" :  {"type" : "string"}
-                                }
+                                },
+                                "required": [ "skill_name", "skill_id", "proficiency"]
                             },
                             "minItems": 1
                         }
                     },
-                    "required": [ "scheduled_name", "agent_name", "agent_id", "skills"]
+                    "required": [ "assignment_name", "agent_name", "agent_id", "skills"]
                 }                
-            elif schema == "del_task":
+            elif schema == "del_assignment":
                 schema_obj = {
                     "type" : "object",
                     "properties" : {
-                        "scheduled_name" : {"type" : "string"},
+                        "assignment_name" : {"type" : "string"},
                         "agent_name" : {"type" : "string"}
                     },
-                    "required": [ "scheduled_name", "agent_name"]
+                    "required": [ "assignment_name", "agent_name"]
                 }  
-            elif schema == "skill":
+            elif schema == "assignment_skill":
                 schema_obj = {
                     "type" : "object",
                     "properties" : {
-                        "scheduled_name" : {"type" : "string"},
+                        "assignment_name" : {"type" : "string"},
                         "skill_name" : {"type" : "string"},
                         "skill_id" : {"type" : "string"}      
                     },
-                    "required": [ "scheduled_name", "skill_name", "skill_id"]
+                    "required": [ "assignment_name", "skill_name", "skill_id"]
                 }     
-            elif schema == "del_skill":
+            elif schema == "del_assignment_skill":
                 schema_obj = {
                     "type" : "object",
                     "properties" : {
-                        "scheduled_name" : {"type" : "string"},
+                        "assignment_name" : {"type" : "string"},
                         "skill_name" : {"type" : "string"}
                     },
-                    "required": [ "scheduled_name", "skill_name"]
+                    "required": [ "assignment_name", "skill_name"]
                 }                                                                
             if extn:
                 self.__extn_validate(instance=body_json, schema=schema_obj)
@@ -536,7 +540,7 @@ class Lambda_Genesys():
 
     def __calc_nextruntime(self, param):
         try:
-            dt_start_datetime = datetime.strptime(f"{param['start_dt']}-{param['run_time']}", '%Y-%m-%d-%H:%M')
+            dt_start_datetime = datetime.strptime(f"{param['start_dt']}-{param['start_time']}", '%Y-%m-%d-%H:%M')
             dt_start_date = datetime.strptime(f"{param['start_dt']}", '%Y-%m-%d')
             dt_today_date = datetime.strptime(f"{date.today()}", '%Y-%m-%d')
 
@@ -544,25 +548,25 @@ class Lambda_Genesys():
             print(f"dt_today_date: {dt_today_date}")
             if dt_start_date > dt_today_date:
                 delta_day = 0
-                dt_schedule = datetime.strptime(f"{param['start_dt']}-{param['run_time']}", '%Y-%m-%d-%H:%M')
+                dt_schedule = datetime.strptime(f"{param['start_dt']}-{param['start_time']}", '%Y-%m-%d-%H:%M')
             else:
                 delta_day = 1
-                dt_schedule = datetime.strptime(f"{dt_today_date.year}-{dt_today_date.month}-{dt_today_date.day}-{param['run_time']}", '%Y-%m-%d-%H:%M')
-                if param['repet_type'] == "M":
-                    dt_schedule = datetime.strptime(f"{dt_today_date.year}-{dt_today_date.month}-{dt_start_date.day}-{param['run_time']}", '%Y-%m-%d-%H:%M')
-                if param['repet_type'] == "Y":
-                    dt_schedule = datetime.strptime(f"{dt_today_date.year}-{dt_start_date.month}-{dt_start_date.day}-{param['run_time']}", '%Y-%m-%d-%H:%M')
+                dt_schedule = datetime.strptime(f"{dt_today_date.year}-{dt_today_date.month}-{dt_today_date.day}-{param['start_time']}", '%Y-%m-%d-%H:%M')
+                if param['repeat_type'] == "M":
+                    dt_schedule = datetime.strptime(f"{dt_today_date.year}-{dt_today_date.month}-{dt_start_date.day}-{param['start_time']}", '%Y-%m-%d-%H:%M')
+                if param['repeat_type'] == "Y":
+                    dt_schedule = datetime.strptime(f"{dt_today_date.year}-{dt_start_date.month}-{dt_start_date.day}-{param['start_time']}", '%Y-%m-%d-%H:%M')
                 if dt_schedule > datetime.now():
                     delta_day = 0
 
             print(f"dt_now: {datetime.now()}")
             print(f"dt_schedule: {dt_schedule}")
             print(f"delta_day: {delta_day}")
-            if param['repet_type'] == "D":
+            if param['repeat_type'] == "D":
                 dt_schedule = dt_schedule + relativedelta(days=delta_day)
                 print(f"NEXT RUN TIME: {dt_schedule}")
                 return dt_schedule
-            elif param['repet_type'] == "W":
+            elif param['repeat_type'] == "W":
                 #  week 0 to 6 -> 0-Monday, 6 - Sunday
                 print(f"dt_schedule.timetuple: {dt_schedule.timetuple()}")
                 time_tuple = dt_schedule.timetuple()
@@ -571,7 +575,7 @@ class Lambda_Genesys():
                 if dt_next_day == 7:
                     dt_next_day = 0
                 for i in range(0,7):
-                    if param['repet_on'][dt_next_day] == "1":
+                    if param['repeat_on'][dt_next_day] == "1":
                         dt_schedule = dt_schedule + relativedelta(days=+ delta_day)
                         print(f"NEXT RUN TIME: {dt_schedule}")
                         return dt_schedule
@@ -580,13 +584,13 @@ class Lambda_Genesys():
                         if dt_next_day > 6:
                             dt_next_day = 0
                     delta_day = delta_day + 1
-            elif param['repet_type'] == "M":
-                dt_schedule_temp = datetime.strptime(f"{dt_schedule.year}-{dt_schedule.month}-{dt_start_datetime.day}-{param['run_time']}", '%Y-%m-%d-%H:%M')
+            elif param['repeat_type'] == "M":
+                dt_schedule_temp = datetime.strptime(f"{dt_schedule.year}-{dt_schedule.month}-{dt_start_datetime.day}-{param['start_time']}", '%Y-%m-%d-%H:%M')
                 dt_schedule = dt_schedule_temp + relativedelta(months=+delta_day)
                 print(f"NEXT RUN TIME: {dt_schedule}")
                 return dt_schedule
-            elif param['repet_type'] == "Y":
-                dt_schedule_temp = datetime.strptime(f"{dt_schedule.year}-{dt_start_datetime.month}-{dt_start_datetime.day}-{param['run_time']}", '%Y-%m-%d-%H:%M')        
+            elif param['repeat_type'] == "Y":
+                dt_schedule_temp = datetime.strptime(f"{dt_schedule.year}-{dt_start_datetime.month}-{dt_start_datetime.day}-{param['start_time']}", '%Y-%m-%d-%H:%M')        
                 dt_schedule = dt_schedule + relativedelta(years=+delta_day)
                 print(f"NEXT RUN TIME: {dt_schedule}")            
                 return dt_schedule
@@ -595,9 +599,107 @@ class Lambda_Genesys():
         except Exception as e:
             raise e 
 
-    def __process_task(self, param):
+    def get_process_scheduled(self):
         try:
-            pass
+            dynamodb = boto3.resource(
+                'dynamodb', 
+                region_name = self.env['region'],
+            )
+            table = dynamodb.Table('Genesys_scheduled')
+            epoch_current = int(time.time())
+            response = table.scan(
+                FilterExpression=Attr('next_runtime').lt(epoch_current)
+            )
+
+            response_json = response['Items']
+            for item in response_json:
+                self.get_run_now(item['assignment_name'])
+                item['last_runtime'] = str(item['last_runtime']) 
+                item['next_runtime'] = str(item['next_runtime'])
+            return response_json
 
         except Exception as e:
             raise e 
+
+    def get_run_now(self, param):
+    # def get_process_assignment(self):
+        try:
+            print("AFTER - get_process_assignment")    
+            assignment_name = param
+            # assignment_name = "assignment_3"
+            print(f"scheduled_name: {assignment_name}")
+            dynamodb = boto3.resource(
+                'dynamodb', 
+                region_name = self.env['region'],
+            )
+            table = dynamodb.Table('Genesys_assignment')
+            response = response = table.query(
+                KeyConditionExpression=Key('assignment_name').eq(assignment_name) 
+            )    
+            response_json = response['Items']
+            print(response_json)
+            for item in response_json:
+                self.__asign_skills(item)
+                # item['last_runtime'] = str(item['last_runtime']) 
+                # item['next_runtime'] = str(item['next_runtime'])
+            print("AFTER - for item in response_json:") 
+            return response_json
+
+        except Exception as e:
+            raise e             
+
+    def __asign_skills(self, item_json):
+        try:
+            print("AFTER - __asign_skills")          
+            print(item_json)
+            print(f"agent_id: {item_json['agent_id']}")
+            print(f"agent_name: {item_json['agent_name']}")
+            agent_id = item_json['agent_id']
+            # for skill in item_json['skills']:
+            #     print(f"skill_id: {skill['skill_id']}")
+            #     print(f"skill_name: {skill['skill_name']}")
+
+            #     requestHeaders = {
+            #         "Authorization": f"{ self.secret_token['token_type'] } { self.secret_token['access_token']}",
+            #         "Content-Type": "application/json",
+            #     }
+            #     routing_url_temp = self.env["routing_url"]
+            #     routing_url = routing_url_temp.replace("AGENT_ID", agent_id)
+            #     body = {
+            #             "id": skill['skill_id'],
+            #             "proficiency": skill['proficiency']
+            #         }
+            #     request_body = json.dumps(body)
+            #     response = requests.post(routing_url, data=request_body, headers=requestHeaders)
+            #     if response.status_code == 200:
+            #         print("Got roles")
+            #     else:
+            #         print(f"Failure: { str(response.status_code) } - { response.reason }")
+            #         raise Exception(f"Failure routing: { str(response.status_code) } - { response.reason }")
+
+            requestHeaders = {
+                "Authorization": f"{ self.secret_token['token_type'] } { self.secret_token['access_token']}",
+                "Content-Type": "application/json",
+            }
+
+            body_list = []
+            for skill in item_json['skills']:
+                body = {
+                        "id": skill['skill_id'],
+                        "proficiency": skill['proficiency']
+                    }
+                body_list.append(body)
+
+            print(f"body_list: {body_list}")
+            routing_url_temp = self.env["routing_url"]
+            routing_url = routing_url_temp.replace("AGENT_ID", agent_id)                    
+            request_body = json.dumps(body_list)
+            response = requests.patch(routing_url, data=request_body, headers=requestHeaders)
+            if response.status_code == 200:
+                print("Got roles")
+            else:
+                print(f"Failure: { str(response.status_code) } - { response.reason }")
+                raise Exception(f"Failure routing: { str(response.status_code) } - { response.reason }")
+
+        except Exception as e:
+            raise e                
