@@ -26,6 +26,10 @@ To start the local web interface
     sam local start-api
     sam local start-api --host 10.10.42.26 --port 3000
 
+To start lambda with event 
+    sam local invoke GenesysFunction --event json/scheduled_event.json
+        the above code will simulate event trigger from event bus - Schedule event.
+
 To check using curl:
     curl http://10.10.42.26:3000/hello
     Note: you need to specify the method (getec2region), if not specify it through an error "Missing Authentication Token"

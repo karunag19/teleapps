@@ -92,6 +92,7 @@ class Lambda_Genesys():
 
     def execute_method(self):
         try:
+            print(f"EVENT: {self.event}")
             if isinstance(self.event, dict) and "path" in self.event:
                 param = self.event.get('path','').split('/')
                 print(param)
@@ -108,6 +109,9 @@ class Lambda_Genesys():
                 else:
                     raise Exception(f"Invalid method type({self.event.get('httpMethod','')}) or name({param[2]})")
                 return result
+            elif "detail-type" in self.event and self.event.get('detail-type') == "Scheduled Event":
+                self.get_process_scheduled()
+
         except Exception as e:
             raise e
 

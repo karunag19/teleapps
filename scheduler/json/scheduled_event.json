@@ -1,0 +1,13 @@
+{
+	"version": "0",
+	"id": "1cce9d4f-3b03-c642-e2dd-6ccc6f089e1d",
+	"detail-type": "Scheduled Event",
+	"source": "aws.events",
+	"account": "070618480609",
+	"time": "2021-12-17T05:25:48Z",
+	"region": "ap-southeast-2",
+	"resources": [
+		"arn:aws:events:ap-southeast-2:070618480609:rule/teleapps_scheduled"
+	],
+	"detail": {}
+}
