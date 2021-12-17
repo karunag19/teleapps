@@ -8,6 +8,7 @@ from datetime import date
 from dateutil.relativedelta import relativedelta
 from boto3.dynamodb.conditions import Key, Attr
 from jsonschema import validate, ValidationError, Draft7Validator, validators
+from decimal import Decimal
 
 from concurrent.futures import ProcessPoolExecutor
 
@@ -292,17 +293,21 @@ class Lambda_Genesys():
 
     def get_assignment(self, param=None):
         try:
-            if param == None:
-                raise Exception(f"Missing assignment name in the path(/genesys/assignment/<schedule name>")
+            # if param == None:
+            #     raise Exception(f"Missing assignment name in the path(/genesys/assignment/<schedule name>")
 
             dynamodb = boto3.resource(
                 'dynamodb', 
                 region_name = self.env['region'],
             )
             table = dynamodb.Table('Genesys_assignment')
-            response = response = table.query(
-                KeyConditionExpression=Key('assignment_name').eq(param)
-            )
+            
+            if param == None:
+                response = response = table.scan()
+            else:    
+                response = response = table.query(
+                    KeyConditionExpression=Key('assignment_name').eq(param)
+                )
             response_json = response
             return response_json   
         except Exception as e:
@@ -616,10 +621,13 @@ class Lambda_Genesys():
             )
 
             response_json = response['Items']
-            for item in response_json:
-                self.get_run_now(item['assignment_name'])
-                item['last_runtime'] = str(item['last_runtime']) 
-                item['next_runtime'] = str(item['next_runtime'])
+            with ProcessPoolExecutor(max_workers = 5) as executor:
+                for item in response_json:
+                    task = executor.submit(self.get_run_now, item['assignment_name'])
+                    # self.get_run_now(item['assignment_name'])
+                    self.__update_scheduled(item)
+                    item['last_runtime'] = str(item['last_runtime']) 
+                    item['next_runtime'] = str(item['next_runtime'])
             return response_json
 
         except Exception as e:
@@ -705,5 +713,56 @@ class Lambda_Genesys():
                 print(f"Failure: { str(response.status_code) } - { response.reason }")
                 raise Exception(f"Failure routing: { str(response.status_code) } - { response.reason }")
 
+        except Exception as e:
+            raise e                
+
+    def __update_scheduled(self, item_json):
+        try:
+            next_runtime = self.__calc_nextruntime(item_json)
+            epoch_next_runtime = int(next_runtime.timestamp())
+            print(f"NEXT RUNTIME: {next_runtime}")
+            dynamodb = boto3.resource(
+                'dynamodb', 
+                region_name = self.env['region'],
+            )            
+            table = dynamodb.Table('Genesys_scheduled')
+            response = table.update_item(
+                Key={
+                    'p_key': 'scheduled',
+                    'scheduled_name': item_json['scheduled_name']
+                },
+                UpdateExpression="SET last_runtime=:l_run, next_runtime=:n_run",
+                ExpressionAttributeValues={
+                    ':n_run': Decimal(epoch_next_runtime),
+                    ':l_run': Decimal(item_json['next_runtime'])
+                }
+            )
+        except Exception as e:
+            raise e             
+
+    def get_test(self):
+        try:
+            client = boto3.client(
+                'events',
+                region_name = self.env['region'],
+            )
+
+            rule = client.put_rule(
+                Name="MyRuleId",
+                ScheduleExpression="rate(2 minutes)",
+                State="ENABLED"
+            )
+
+            client.put_targets(
+                Rule="MyRuleId",
+                Targets=[
+                    {
+                        "Id": "MyTargetId",
+                        "Arn": "arn:aws:lambda:ap-southeast-2:070618480609:function:Genesys",
+                        "Input": json.dumps({"foo": "bar"})
+                    }
+                ]
+            )
+            return {"message":"put_target success"}
         except Exception as e:
             raise e                

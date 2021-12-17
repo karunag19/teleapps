@@ -28,7 +28,12 @@ To start the local web interface
 
 To start lambda with event 
     sam local invoke GenesysFunction --event json/scheduled_event.json
-        the above code will simulate event trigger from event bus - Schedule event.
+    Note: the above code will simulate event trigger from event bus - Schedule event.
+
+To View Log:
+    Go to :CloudWatch
+        Inside -> select "Log groups" & select /aws/lambda/Genesys
+
 
 To check using curl:
     curl http://10.10.42.26:3000/hello

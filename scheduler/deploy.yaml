@@ -33,7 +33,7 @@ Resources:
       Description: All Genesys related functions like get agents, skill, schedule,
         task etc..
       Role: arn:aws:iam::070618480609:role/TeleApps-Schedule
-      CodeUri: s3://deployment-teleapps-schedule/8c20dc67dbee5777f6e343017242bfef
+      CodeUri: s3://deployment-teleapps-schedule/02a61c939ce3f2e16da84ee61a952c1f
       Handler: g_main.lambda_handler
       Layers:
       - Ref: AppDepLayer
