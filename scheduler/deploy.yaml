@@ -7,7 +7,7 @@ Description: 'scheduler
   '
 Globals:
   Function:
-    Timeout: 3
+    Timeout: 10
 Resources:
   UsersFunction:
     Type: AWS::Serverless::Function
@@ -15,7 +15,7 @@ Resources:
       FunctionName: Users
       Description: Create, Delete, List & Reset admin users
       Role: arn:aws:iam::070618480609:role/TeleApps-Schedule
-      CodeUri: s3://deployment-teleapps-schedule/e9f201752fa1b87411fe9a7a38184998
+      CodeUri: s3://deployment-teleapps-schedule/f92f4c1711a90c099522ae88715d66f6
       Handler: main.lambda_handler
       Layers:
       - Ref: AppDepLayer
@@ -33,7 +33,7 @@ Resources:
       Description: All Genesys related functions like get agents, skill, schedule,
         task etc..
       Role: arn:aws:iam::070618480609:role/TeleApps-Schedule
-      CodeUri: s3://deployment-teleapps-schedule/02a61c939ce3f2e16da84ee61a952c1f
+      CodeUri: s3://deployment-teleapps-schedule/c3d3838e81bb3d184cbea565a0106cfd
       Handler: g_main.lambda_handler
       Layers:
       - Ref: AppDepLayer

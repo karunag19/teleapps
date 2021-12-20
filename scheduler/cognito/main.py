@@ -19,16 +19,16 @@ def lambda_handler(event, context):
 
         genesys = Lambda_Cognito(event, context, env)
         result = genesys.execute_method()
-        return get_result(0, result)
+        return get_result(1, result)
 
     except Exception as e:
         logging.error(e)
-        return get_result(1, str(e))
+        return get_result(0, str(e))
 
 def get_result(success, data):
     result = {}
     result['success'] = success
-    if success == 0:
+    if success == 1:
         result['result'] = data
     else:
         result['error'] = data      

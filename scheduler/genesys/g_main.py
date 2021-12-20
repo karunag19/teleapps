@@ -10,7 +10,7 @@ from boto3.dynamodb.conditions import Key, Attr
 from jsonschema import validate, ValidationError, Draft7Validator, validators
 from decimal import Decimal
 
-from concurrent.futures import ProcessPoolExecutor
+from concurrent.futures import ThreadPoolExecutor
 
 genesys_environment = "mypurecloud.com.au"
 token_url = f"https://login.{genesys_environment}/oauth/token"
@@ -35,16 +35,16 @@ def lambda_handler(event, context):
 
         genesys = Lambda_Genesys(event, context, env)
         result = genesys.execute_method()
-        return get_result(0, result)
+        return get_result(1, result)
 
     except Exception as e:
         logging.error(e)
-        return get_result(1, str(e))
+        return get_result(0, str(e))
 
 def get_result(success, data):
     result = {}
     result['success'] = success
-    if success == 0:
+    if success == 1:
         result['result'] = data
     else:
         result['error'] = data      
@@ -619,15 +619,16 @@ class Lambda_Genesys():
             response = table.scan(
                 FilterExpression=Attr('next_runtime').lt(epoch_current)
             )
+            if response["Count"] == 0:
+                print("NO EVENT SCHEDULED")
+                return {"success": 1}
 
             response_json = response['Items']
-            with ProcessPoolExecutor(max_workers = 5) as executor:
-                for item in response_json:
-                    task = executor.submit(self.get_run_now, item['assignment_name'])
-                    # self.get_run_now(item['assignment_name'])
-                    self.__update_scheduled(item)
-                    item['last_runtime'] = str(item['last_runtime']) 
-                    item['next_runtime'] = str(item['next_runtime'])
+            for item in response_json:
+                self.get_run_now(item['assignment_name'])
+                self.__update_scheduled(item)
+                item['last_runtime'] = str(item['last_runtime']) 
+                item['next_runtime'] = str(item['next_runtime'])
             return response_json
 
         except Exception as e:
@@ -649,12 +650,13 @@ class Lambda_Genesys():
                 KeyConditionExpression=Key('assignment_name').eq(assignment_name) 
             )    
             response_json = response['Items']
-            print(response_json)
+
+            map_assignment =[]
             for item in response_json:
-                self.__asign_skills(item)
-                # item['last_runtime'] = str(item['last_runtime']) 
-                # item['next_runtime'] = str(item['next_runtime'])
-            print("AFTER - for item in response_json:") 
+                map_assignment.append(item)
+            print(f"LENGTH: {len(map_assignment)}")
+            with ThreadPoolExecutor(max_workers = 10) as executor:
+                task = executor.map(self.__asign_skills, map_assignment)
             return response_json
 
         except Exception as e:
