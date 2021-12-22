@@ -55,3 +55,7 @@ Install Packages as Layer:
     e.g
     pip install jsonschema -t .
     pip install python-dateutil -t .
+
+Role:
+    If you got error "provided role cannot be assumed by principal" when you create corn job, in IAM role you have to 
+    add  "events.amazonaws.com" in "Trusted Relationships"

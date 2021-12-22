@@ -258,6 +258,9 @@ class Lambda_Genesys():
             response = table.put_item(
                 Item=body_json
             )
+            start_time = body_json['start_time']
+            start_time_split = start_time.split(":")
+            self.__set_cron_job(body_json['scheduled_name'], start_time_split[0], start_time_split[1] )
             response_json = response
             return response_json   
 
@@ -337,6 +340,64 @@ class Lambda_Genesys():
             )
             response_json = response
             return response_json   
+        except Exception as e:
+            raise e 
+
+    def post_assignment_bulk(self):
+        try:
+            if self.event.get('body', None) == None:
+                raise Exception(f"You have to pass the data as JSON in body")
+            body_json = json.loads(self.event.get('body'))
+            self.__validate_schema("assignment_bulk", body_json)
+            dynamodb = boto3.resource(
+                'dynamodb', 
+                region_name = self.env['region'],
+            )
+            table = dynamodb.Table('Genesys_assignment')
+            response = table.query(
+                    KeyConditionExpression=Key('assignment_name').eq(body_json['assignment_name'])
+            )
+            print(f"RESPONSE: {response}")            
+            if response['Count'] > 0:
+                raise Exception(f"assignment with the same name: {body_json['assignment_name']} is already available")
+
+            with table.batch_writer() as batch:
+                for item in body_json['assignment']:
+                    item['assignment_name'] = body_json['assignment_name']
+                    batch.put_item(
+                        Item=item
+                    )
+            response_json = {"message":"bulk assignment success"} 
+            return response_json   
+        except Exception as e:
+            raise e
+
+    def put_assignment(self, param=None):
+        try:
+            
+            # if param == None:
+            #     raise Exception(f"Missing assignment name in the path(/genesys/assignment/<assignment name>")
+            # if self.event.get('body', None) == None:
+            #     raise Exception(f"You have to pass the data as JSON in body")
+            # body_json = json.loads(self.event.get('body'))
+            # self.__validate_schema("put_assignment", body_json)
+            # dynamodb = boto3.resource(
+            #     'dynamodb', 
+            #     region_name = self.env['region'],
+            # )
+            # table = dynamodb.Table('Genesys_assignment')
+            # response = table.get_item(
+            #     Key={
+            #         'assignment_name': body_json['assignment_name'],
+            #         'agent_name': body_json['agent_name']
+            #     }
+            # )
+            # if "Item" in response:
+            #     raise Exception(f"assignment with the same name: {body_json['assignment_name']} with agent_name: {body_json['agent_name']}  is already available")
+            # response = table.put_item(
+            #     Item=body_json
+            # )
+            return {"message":"Not implemented yet"}   
         except Exception as e:
             raise e 
 
@@ -476,7 +537,60 @@ class Lambda_Genesys():
                         }
                     },
                     "required": [ "assignment_name", "agent_name", "agent_id", "skills"]
-                }                
+                }    
+            elif schema == "put_assignment":
+                schema_obj = {
+                    "type" : "object",
+                    "properties" : {
+                        "agent_name" : {"type" : "string"},
+                        "skills" : {
+                            "type" : "array", 
+                            "items" : {
+                                "type" : "object",
+                                "properties": {
+                                    "skill_name" :  {"type" : "string"},
+                                    "proficiency" :  {"type" : "string"}
+                                },
+                                "required": [ "skill_name", "proficiency"]
+                            },
+                            "minItems": 1
+                        }
+                    },
+                    "required": [ "agent_name", "skills"]
+                }                   
+            elif schema == "assignment_bulk":
+                schema_obj = {
+                    "type" : "object",
+                    "properties" : {     
+                        "assignment_name" : {"type" : "string"},               
+                        "assignment": {
+                            "type": "array",
+                            "items": {
+                                "type" : "object",
+                                "properties" : {
+                                    "agent_name" : {"type" : "string"},
+                                    "agent_id" : {"type" : "string"},
+                                    "skills" : {
+                                        "type" : "array", 
+                                        "items" : {
+                                            "type" : "object",
+                                            "properties": {
+                                                "skill_name" :  {"type" : "string"},
+                                                "skill_id" :  {"type" : "string"},
+                                                "proficiency" :  {"type" : "string"}
+                                            },
+                                            "required": [ "skill_name", "skill_id", "proficiency"]
+                                        },
+                                        "minItems": 1
+                                    }
+                                },
+                                "required": ["agent_name", "agent_id", "skills"]
+                            },
+                            "minItems": 1
+                        }
+                    },
+                    "required": ["assignment_name", "assignment"]
+                }                            
             elif schema == "del_assignment":
                 schema_obj = {
                     "type" : "object",
@@ -504,7 +618,16 @@ class Lambda_Genesys():
                         "skill_name" : {"type" : "string"}
                     },
                     "required": [ "assignment_name", "skill_name"]
-                }                                                                
+                }
+            elif schema == "clone":
+                schema_obj = {
+                    "type" : "object",
+                    "properties" : {
+                        "assignment_name" : {"type" : "string"},
+                        "clone_name" : {"type" : "string"}
+                    },
+                    "required": [ "assignment_name", "clone_name"]
+                }                                                                                
             if extn:
                 self.__extn_validate(instance=body_json, schema=schema_obj)
             else:
@@ -635,7 +758,6 @@ class Lambda_Genesys():
             raise e 
 
     def get_run_now(self, param):
-    # def get_process_assignment(self):
         try:
             print("AFTER - get_process_assignment")    
             assignment_name = param
@@ -662,6 +784,82 @@ class Lambda_Genesys():
         except Exception as e:
             raise e             
 
+    def post_clone(self):
+        try:
+            if self.event.get('body', None) == None:
+                raise Exception(f"You have to pass the data as JSON in body")
+            body_json = json.loads(self.event.get('body'))
+            self.__validate_schema("clone", body_json) 
+            print("AFTER __validate_schema")           
+            dynamodb = boto3.resource(
+                'dynamodb', 
+                region_name = self.env['region'],
+            )
+            table = dynamodb.Table('Genesys_assignment')
+            response = table.query(
+                    KeyConditionExpression=Key('assignment_name').eq(body_json['clone_name'])
+            )            
+            if response['Count'] > 0:
+                raise Exception(f"assignment with the same name: {body_json['clone_name']} is already available")
+                        
+            response = table.query(
+                    KeyConditionExpression=Key('assignment_name').eq(body_json['assignment_name'])
+            )
+            print(f"AFTER query - response {response}") 
+            if "Items" in response:
+                print(f"AFTER if ITEMS - Items: {response['Items']}") 
+                with table.batch_writer() as batch:
+                    for item in response['Items']:
+                        item['assignment_name'] = body_json['clone_name']
+                        batch.put_item(
+                            Item=item
+                        )
+                    print(f"AFTER able.batch_writer()")
+            
+            print(f"AFTER if end")
+            response_json = {"message":"clone assignment success"}  
+            return response_json         
+        except Exception as e:
+            raise e 
+
+    def post_mass_update(self):
+        try:
+            if self.event.get('body', None) == None:
+                raise Exception(f"You have to pass the data as JSON in body")
+            body_json = json.loads(self.event.get('body'))
+            self.__validate_schema("clone", body_json) 
+            print("AFTER __validate_schema")           
+            dynamodb = boto3.resource(
+                'dynamodb', 
+                region_name = self.env['region'],
+            )
+            table = dynamodb.Table('Genesys_assignment')
+            response = table.query(
+                    KeyConditionExpression=Key('assignment_name').eq(body_json['clone_name'])
+            )            
+            if response['Count'] > 0:
+                raise Exception(f"assignment with the same name: {body_json['clone_name']} is already available")
+                        
+            response = table.query(
+                    KeyConditionExpression=Key('assignment_name').eq(body_json['assignment_name'])
+            )
+            print(f"AFTER query - response {response}") 
+            if "Items" in response:
+                print(f"AFTER if ITEMS - Items: {response['Items']}") 
+                with table.batch_writer() as batch:
+                    for item in response['Items']:
+                        item['assignment_name'] = body_json['clone_name']
+                        batch.put_item(
+                            Item=item
+                        )
+                    print(f"AFTER able.batch_writer()")
+            
+            print(f"AFTER if end")
+            response_json = {"message":"clone assignment success"}  
+            return response_json         
+        except Exception as e:
+            raise e 
+
     def __asign_skills(self, item_json):
         try:
             print("AFTER - __asign_skills")          
@@ -669,27 +867,6 @@ class Lambda_Genesys():
             print(f"agent_id: {item_json['agent_id']}")
             print(f"agent_name: {item_json['agent_name']}")
             agent_id = item_json['agent_id']
-            # for skill in item_json['skills']:
-            #     print(f"skill_id: {skill['skill_id']}")
-            #     print(f"skill_name: {skill['skill_name']}")
-
-            #     requestHeaders = {
-            #         "Authorization": f"{ self.secret_token['token_type'] } { self.secret_token['access_token']}",
-            #         "Content-Type": "application/json",
-            #     }
-            #     routing_url_temp = self.env["routing_url"]
-            #     routing_url = routing_url_temp.replace("AGENT_ID", agent_id)
-            #     body = {
-            #             "id": skill['skill_id'],
-            #             "proficiency": skill['proficiency']
-            #         }
-            #     request_body = json.dumps(body)
-            #     response = requests.post(routing_url, data=request_body, headers=requestHeaders)
-            #     if response.status_code == 200:
-            #         print("Got roles")
-            #     else:
-            #         print(f"Failure: { str(response.status_code) } - { response.reason }")
-            #         raise Exception(f"Failure routing: { str(response.status_code) } - { response.reason }")
 
             requestHeaders = {
                 "Authorization": f"{ self.secret_token['token_type'] } { self.secret_token['access_token']}",
@@ -742,29 +919,61 @@ class Lambda_Genesys():
         except Exception as e:
             raise e             
 
-    def get_test(self):
+    def __set_cron_job(self, scheduled_name, hrs, min=0):
         try:
             client = boto3.client(
                 'events',
                 region_name = self.env['region'],
+                aws_access_key_id = self.secret_client['CLIENT_ID'],
+                aws_secret_access_key= self.secret_client['SECRET_KEY']              
             )
-
             rule = client.put_rule(
-                Name="MyRuleId",
-                ScheduleExpression="rate(2 minutes)",
-                State="ENABLED"
+                Name = scheduled_name,
+                # ScheduleExpress\ion="rate(2 minutes)",
+                ScheduleExpression = f"cron({int(min)} {int(hrs)} * * ? *)",
+                State="ENABLED",
+                RoleArn="arn:aws:iam::070618480609:role/TeleApps-Schedule"
             )
-
             client.put_targets(
-                Rule="MyRuleId",
+                Rule = scheduled_name,
                 Targets=[
                     {
-                        "Id": "MyTargetId",
+                        "Id": "TeleApps_Genesys",
                         "Arn": "arn:aws:lambda:ap-southeast-2:070618480609:function:Genesys",
-                        "Input": json.dumps({"foo": "bar"})
+                        "Input": json.dumps({"scheduled_name": scheduled_name})
                     }
                 ]
             )
+            return {"message":"put_target success"}
+        except Exception as e:
+            raise e                
+
+    def __del_cron_job(self, scheduled_name):
+        try:
+            client = boto3.client(
+                'events',
+                region_name = self.env['region'],
+                aws_access_key_id = self.secret_client['CLIENT_ID'],
+                aws_secret_access_key= self.secret_client['SECRET_KEY']
+            )
+            response = client.remove_targets(
+                Rule=scheduled_name,
+                Ids=[
+                    'TeleApps_Genesys'
+                ],
+                Force=True
+            )
+            rule = client.delete_rule(
+                Name = scheduled_name,
+                Force= True
+            )
+            return {"message":"remove scheduled success"}
+        except Exception as e:
+            raise e 
+
+    def get_test(self):
+        try:
+            self.__del_cron_job("schedule_5")
             return {"message":"put_target success"}
         except Exception as e:
             raise e                
