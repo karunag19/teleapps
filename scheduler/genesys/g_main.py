@@ -374,30 +374,66 @@ class Lambda_Genesys():
 
     def put_assignment(self, param=None):
         try:
-            
-            # if param == None:
-            #     raise Exception(f"Missing assignment name in the path(/genesys/assignment/<assignment name>")
-            # if self.event.get('body', None) == None:
-            #     raise Exception(f"You have to pass the data as JSON in body")
-            # body_json = json.loads(self.event.get('body'))
-            # self.__validate_schema("put_assignment", body_json)
-            # dynamodb = boto3.resource(
-            #     'dynamodb', 
-            #     region_name = self.env['region'],
-            # )
-            # table = dynamodb.Table('Genesys_assignment')
-            # response = table.get_item(
-            #     Key={
-            #         'assignment_name': body_json['assignment_name'],
-            #         'agent_name': body_json['agent_name']
-            #     }
-            # )
-            # if "Item" in response:
-            #     raise Exception(f"assignment with the same name: {body_json['assignment_name']} with agent_name: {body_json['agent_name']}  is already available")
+
+            if param == None:
+                raise Exception(f"Missing assignment name in the path(/genesys/assignment/<assignment name>")
+            if self.event.get('body', None) == None:
+                raise Exception(f"You have to pass the data as JSON in body")
+            body_json = json.loads(self.event.get('body'))
+            self.__validate_schema("put_assignment", body_json)
+            dynamodb = boto3.resource(
+                'dynamodb', 
+                region_name = self.env['region'],
+            )
+            table = dynamodb.Table('Genesys_assignment')
+            response = table.get_item(
+                Key={
+                    'assignment_name': param,
+                    'agent_name': body_json['agent_name']
+                }
+            )
+            if not "Item" in response:
+                raise Exception(f"No assignment with the name: {param} and agent: {body_json['agent_name']} ")
+
+            response = table.update_item(
+                Key={
+                    'assignment_name': param,
+                    'agent_name': body_json['agent_name']
+                },
+                UpdateExpression="SET #skills=:s_prof",
+                ExpressionAttributeNames={
+                    "#skills": "skills"
+                    },
+                ExpressionAttributeValues={
+                    ':s_prof': body_json["skills"],
+                }
+            ) 
+
             # response = table.put_item(
             #     Item=body_json
             # )
-            return {"message":"Not implemented yet"}   
+            # with table.batch_writer() as batch:
+            #     for item in body_json['assignment']:
+            #         item['assignment_name'] = body_json['assignment_name']
+            #         batch.put_item(
+            #             Item=item
+            #         )
+
+
+            # table = dynamodb.Table('Genesys_assignment')
+            # response = table.update_item(
+            #     Key={
+            #         'assignment_name': param,
+            #         'agent_name': item_json['agent_name']
+            #     },
+            #     UpdateExpression="SET last_runtime=:l_run, next_runtime=:n_run",
+            #     ExpressionAttributeValues={
+            #         ':n_run': Decimal(epoch_next_runtime),
+            #         ':l_run': Decimal(item_json['next_runtime'])
+            #     }
+            # )
+
+            return response  
         except Exception as e:
             raise e 
 
@@ -549,9 +585,10 @@ class Lambda_Genesys():
                                 "type" : "object",
                                 "properties": {
                                     "skill_name" :  {"type" : "string"},
+                                    "skill_id" :  {"type" : "string"},
                                     "proficiency" :  {"type" : "string"}
                                 },
-                                "required": [ "skill_name", "proficiency"]
+                                "required": [ "skill_name", "skill_id", "proficiency"]
                             },
                             "minItems": 1
                         }
@@ -590,7 +627,28 @@ class Lambda_Genesys():
                         }
                     },
                     "required": ["assignment_name", "assignment"]
-                }                            
+                }   
+            elif schema == "mass_update":
+                schema_obj = {
+                    "type" : "object",
+                    "properties" : {
+                        "assignment_name" : {"type" : "string"},
+                        "skill_id" :  {"type" : "string"},
+                        "proficiency" :  {"type" : "string"}
+                    },
+                    "required": [ "assignment_name", "skill_id", "proficiency"]
+                }    
+            elif schema == "assignment_add_skill":
+                schema_obj = {
+                    "type" : "object",
+                    "properties" : {
+                        "assignment_name" : {"type" : "string"},
+                        "skill_name" :  {"type" : "string"},
+                        "skill_id" :  {"type" : "string"},
+                        "proficiency" :  {"type" : "string"}
+                    },
+                    "required": [ "assignment_name", "skill_id", "proficiency"]
+                }                                                    
             elif schema == "del_assignment":
                 schema_obj = {
                     "type" : "object",
@@ -822,12 +880,12 @@ class Lambda_Genesys():
         except Exception as e:
             raise e 
 
-    def post_mass_update(self):
+    def put_mass_update(self):
         try:
             if self.event.get('body', None) == None:
                 raise Exception(f"You have to pass the data as JSON in body")
             body_json = json.loads(self.event.get('body'))
-            self.__validate_schema("clone", body_json) 
+            self.__validate_schema("mass_update", body_json) 
             print("AFTER __validate_schema")           
             dynamodb = boto3.resource(
                 'dynamodb', 
@@ -835,27 +893,88 @@ class Lambda_Genesys():
             )
             table = dynamodb.Table('Genesys_assignment')
             response = table.query(
-                    KeyConditionExpression=Key('assignment_name').eq(body_json['clone_name'])
+                    KeyConditionExpression=Key('assignment_name').eq(body_json["assignment_name"])
             )            
-            if response['Count'] > 0:
-                raise Exception(f"assignment with the same name: {body_json['clone_name']} is already available")
-                        
-            response = table.query(
-                    KeyConditionExpression=Key('assignment_name').eq(body_json['assignment_name'])
+            if response['Count'] == 0:
+                raise Exception(f"Invalid assignment ({body_json['assignment_name']}) or no user assigned for this assignment")
+
+            with table.batch_writer() as batch:
+                for item in response["Items"]:
+                    count = 0
+                    for skill in item["skills"]:
+                        if skill["skill_id"] == body_json["skill_id"]:
+                            item["skills"][count]["proficiency"] = body_json["proficiency"]
+                        count = count + 1
+                    batch.put_item(
+                        Item=item
+                    )
+            response_json = {"message": "mass update success"}
+            return response_json         
+        except Exception as e:
+            raise e 
+
+    def post_assignment_skill(self):
+        try:
+            if self.event.get('body', None) == None:
+                raise Exception(f"You have to pass the data as JSON in body")
+            body_json = json.loads(self.event.get('body'))
+            self.__validate_schema("assignment_add_skill", body_json) 
+            print("AFTER __validate_schema")           
+            dynamodb = boto3.resource(
+                'dynamodb', 
+                region_name = self.env['region'],
             )
-            print(f"AFTER query - response {response}") 
-            if "Items" in response:
-                print(f"AFTER if ITEMS - Items: {response['Items']}") 
-                with table.batch_writer() as batch:
-                    for item in response['Items']:
-                        item['assignment_name'] = body_json['clone_name']
-                        batch.put_item(
-                            Item=item
-                        )
-                    print(f"AFTER able.batch_writer()")
-            
-            print(f"AFTER if end")
-            response_json = {"message":"clone assignment success"}  
+            table = dynamodb.Table('Genesys_assignment')
+            response = table.query(
+                    KeyConditionExpression=Key('assignment_name').eq(body_json["assignment_name"])
+            )            
+            if response['Count'] == 0:
+                raise Exception(f"Invalid assignment ({body_json['assignment_name']}) or no user assigned for this assignment")
+
+            with table.batch_writer() as batch:
+                for item in response["Items"]:
+                    new_skill = {}
+                    new_skill['skill_id'] = body_json["skill_id"]
+                    new_skill['skill_name'] = body_json["skill_name"]
+                    new_skill['proficiency'] = body_json["proficiency"]
+                    item["skills"].append(new_skill) 
+                    batch.put_item(
+                        Item=item
+                    )
+            response_json = {"message": "add assignment skill - success"}
+            return response_json         
+        except Exception as e:
+            raise e 
+
+    def delete_assignment_skill(self):
+        try:
+            if self.event.get('body', None) == None:
+                raise Exception(f"You have to pass the data as JSON in body")
+            body_json = json.loads(self.event.get('body'))
+            self.__validate_schema("mass_update", body_json) 
+            print("AFTER __validate_schema")           
+            dynamodb = boto3.resource(
+                'dynamodb', 
+                region_name = self.env['region'],
+            )
+            table = dynamodb.Table('Genesys_assignment')
+            response = table.query(
+                    KeyConditionExpression=Key('assignment_name').eq(body_json["assignment_name"])
+            )            
+            if response['Count'] == 0:
+                raise Exception(f"Invalid assignment ({body_json['assignment_name']}) or no user assigned for this assignment")
+
+            with table.batch_writer() as batch:
+                for item in response["Items"]:
+                    new_skills = []
+                    for skill in item["skills"]:
+                        if skill["skill_id"] != body_json["skill_id"]:
+                            new_skills.append(skill)
+                    item["skills"] = new_skills
+                    batch.put_item(
+                        Item=item
+                    )
+            response_json = {"message": "delete assignment skill - success"}
             return response_json         
         except Exception as e:
             raise e 
@@ -973,7 +1092,49 @@ class Lambda_Genesys():
 
     def get_test(self):
         try:
-            self.__del_cron_job("schedule_5")
+            dynamodb = boto3.resource(
+                'dynamodb', 
+                region_name = self.env['region'],
+            )            
+            table = dynamodb.Table('Genesys_assignment')
+            skill = {
+                "DMSkill4": {
+                    "proficiency": "1",
+                    "skill_id": "1a8b49f2-7b66-41d3-b1b6-c519c5da78b6"
+                },
+                "DMSkill5": {
+                    "skill_id": "97163e08-77f9-46c3-9dd7-106d67484771",
+                    "proficiency": "2"
+                }
+            }
+            response = table.update_item(
+                Key={
+                    'assignment_name': "assignment_11",
+                    'agent_name': "Karuna"
+                },
+                UpdateExpression="SET #skills=:s_prof",
+                ExpressionAttributeNames={
+                    "#skills": "skills"
+                    },
+                ExpressionAttributeValues={
+                    ':s_prof': skill,
+                }
+            )  
+
+            # Karuna - working
+            # response = table.update_item(
+            #     Key={
+            #         'assignment_name': "assignment_3",
+            #         'agent_name': "Karuna"
+            #     },
+            #     UpdateExpression="SET #skills.DMSkill1.proficiency=:s_prof",
+            #     ExpressionAttributeNames={
+            #         "#skills": "skills"
+            #         },
+            #     ExpressionAttributeValues={
+            #         ':s_prof': "1",
+            #     }
+            # )            
             return {"message":"put_target success"}
         except Exception as e:
             raise e                
