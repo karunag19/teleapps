@@ -268,6 +268,47 @@ class Lambda_Genesys():
         except Exception as e:
             raise e 
 
+    def put_scheduled(self, param=None):
+        try:
+            if param == None:
+                raise Exception(f"Missing assignment name in the path(/genesys/scheduled/<scheduled name>")
+            if self.event.get('body', None) == None:
+                raise Exception(f"You have to pass the data as JSON in body")
+            body_json = json.loads(self.event.get('body'))
+            self.__validate_schema("put_scheduled", body_json, extn=True)
+            dynamodb = boto3.resource(
+                'dynamodb', 
+                region_name = self.env['region'],
+            )
+            table = dynamodb.Table('Genesys_scheduled')
+            response = table.get_item(
+                Key={
+                    'p_key': 'scheduled',
+                    'scheduled_name': param
+                }
+            )
+            if not "Item" in response:
+                raise Exception(f"No scheduled with the name: {param} is available")
+            
+            next_runtime = self.__calc_nextruntime(body_json)
+            epoch_next_runtime = int(next_runtime.timestamp())
+            body_json['p_key'] = "scheduled"
+            body_json['scheduled_name'] = param
+            body_json['next_runtime'] = epoch_next_runtime
+            body_json['last_runtime'] = 0
+            response = table.put_item(
+                Item=body_json
+            )
+            start_time = body_json['start_time']
+            start_time_split = start_time.split(":")
+            self.__set_cron_job(body_json['scheduled_name'], start_time_split[0], start_time_split[1] )
+            response_json = response
+            return response_json   
+
+            return body_json
+        except Exception as e:
+            raise e 
+
     def delete_scheduled(self):
         try:
             if self.event.get('body', None) == None:
@@ -535,6 +576,19 @@ class Lambda_Genesys():
                 schema_obj = {
                     "type" : "object",
                     "properties" : {
+                        "scheduled_name" : {"type" : "string"},
+                        "assignment_name" : {"type" : "string"},
+                        "repeat_on" : {"type" : "array", "items" : {"type" : "string","enum" : ["0","1"]}, "minItems": 7},
+                        "repeat_type" : {"type" : "string", "enum" : ["D", "W", "M", "Y"]},
+                        "start_dt" : {"type" : "ex_date", "description": "Format - YYYY-MM-DD"},
+                        "start_time" : {"type" : "ex_time", "description": "Format - HH:MM"},
+                    },
+                    "required": [ "scheduled_name","assignment_name", "repeat_on", "repeat_type", "start_dt", "start_time"]
+                }
+            elif schema == "put_scheduled":
+                schema_obj = {
+                    "type" : "object",
+                    "properties" : {
                         "assignment_name" : {"type" : "string"},
                         "repeat_on" : {"type" : "array", "items" : {"type" : "string","enum" : ["0","1"]}, "minItems": 7},
                         "repeat_type" : {"type" : "string", "enum" : ["D", "W", "M", "Y"]},
@@ -542,7 +596,7 @@ class Lambda_Genesys():
                         "start_time" : {"type" : "ex_time", "description": "Format - HH:MM"},
                     },
                     "required": [ "assignment_name", "repeat_on", "repeat_type", "start_dt", "start_time"]
-                }
+                }                
             elif schema == "del_scheduled":
                 schema_obj = {
                     "type" : "object",
