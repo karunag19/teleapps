@@ -450,30 +450,6 @@ class Lambda_Genesys():
                 }
             ) 
 
-            # response = table.put_item(
-            #     Item=body_json
-            # )
-            # with table.batch_writer() as batch:
-            #     for item in body_json['assignment']:
-            #         item['assignment_name'] = body_json['assignment_name']
-            #         batch.put_item(
-            #             Item=item
-            #         )
-
-
-            # table = dynamodb.Table('Genesys_assignment')
-            # response = table.update_item(
-            #     Key={
-            #         'assignment_name': param,
-            #         'agent_name': item_json['agent_name']
-            #     },
-            #     UpdateExpression="SET last_runtime=:l_run, next_runtime=:n_run",
-            #     ExpressionAttributeValues={
-            #         ':n_run': Decimal(epoch_next_runtime),
-            #         ':l_run': Decimal(item_json['next_runtime'])
-            #     }
-            # )
-
             return response  
         except Exception as e:
             raise e 
@@ -1046,24 +1022,35 @@ class Lambda_Genesys():
                 "Content-Type": "application/json",
             }
 
-            body_list = []
+            skill_add_list = []
+            skill_remove_list = []
             for skill in item_json['skills']:
                 body = {
                         "id": skill['skill_id'],
                         "proficiency": skill['proficiency']
                     }
-                body_list.append(body)
-
-            print(f"body_list: {body_list}")
+                if int(skill['proficiency']) > 0:
+                    skill_add_list.append(body)
+                else:
+                    skill_remove_list.append(body)
+            
+            print(f"skill_add_list: {skill_add_list}")
             routing_url_temp = self.env["routing_url"]
             routing_url = routing_url_temp.replace("AGENT_ID", agent_id)                    
-            request_body = json.dumps(body_list)
-            response = requests.patch(routing_url, data=request_body, headers=requestHeaders)
+            request_body = json.dumps(skill_add_list)
+            # PATCH /api/v2/users/{userId}/routingskills/bulk -> Bulk add routing skills to user
+            # PUT /api/v2/users/{userId}/routingskills/bulk -> Replace all routing skills assigned to a user
+            response = requests.put(routing_url, data=request_body, headers=requestHeaders)
             if response.status_code == 200:
-                print("Got roles")
+                print("Genesys - Skills updated")
             else:
                 print(f"Failure: { str(response.status_code) } - { response.reason }")
                 raise Exception(f"Failure routing: { str(response.status_code) } - { response.reason }")
+
+            if len(skill_remove_list) > 0:
+                # if we are planning to use PATCH, then we have to delete the users with prociency 0.
+                # DELETE /api/v2/users/{userId}/routingskills/{skillId} -> Remove routing skill from user
+                pass
 
         except Exception as e:
             raise e                
