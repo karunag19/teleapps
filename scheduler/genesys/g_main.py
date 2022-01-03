@@ -143,8 +143,12 @@ class Lambda_Genesys():
 
     def __get_token(self):
         try:
+            print("__get_token")
             GENESYS_CLIENT_ID = self.secret_client['GENESYS_CLIENT_ID']
             GENESYS_SECRET = self.secret_client['GENESYS_SECRET']
+            # GENESYS_CLIENT_ID = 'd684b8b1-2ac2-4476-b8a7-60a2eb498a45'
+            # GENESYS_SECRET = 'BCD0_yFifgUyzuQ5Nq64wxzF-R6qSXajr8bWw59Lz8M'           
+
 
             # Base64 encode the client ID and client secret
             authorization = base64.b64encode(bytes(GENESYS_CLIENT_ID + ":" + GENESYS_SECRET, "ISO-8859-1")).decode("ascii")
@@ -159,6 +163,7 @@ class Lambda_Genesys():
 
             # Get token
             response = requests.post(self.env["token_url"], data=request_body, headers=request_headers)
+            print(f"response: {response}")
             # Check response
             if response.status_code == 200:
                 print("Got token")
@@ -476,7 +481,37 @@ class Lambda_Genesys():
             return response_json   
         except Exception as e:
             raise e
-
+    
+    def delete_all_assignment(self):
+        try:
+            if self.event.get('body', None) == None:
+                raise Exception(f"You have to pass the data as JSON in body")
+            body_json = json.loads(self.event.get('body'))
+            self.__validate_schema("del_all_assignment", body_json)
+            dynamodb = boto3.resource(
+                'dynamodb', 
+                region_name = self.env['region'],
+            )
+            table = dynamodb.Table('Genesys_assignment')
+            response = response = table.query(
+                KeyConditionExpression=Key('assignment_name').eq(body_json['assignment_name'])
+            )
+            if response["Count"] == 0:
+                raise Exception(f"Invalid assignment_name: {body_json['assignment_name']}")           
+            with table.batch_writer() as batch:
+                for item in response['Items']:
+                    assignment_name = body_json['assignment_name']
+                    agent_name = item['agent_name']
+                    batch.delete_item( 
+                        Key={
+                            'assignment_name': assignment_name,
+                            'agent_name': agent_name
+                        }
+                    )
+            response_json = {"message":f"delete assignment({assignment_name}) success"} 
+            return response_json   
+        except Exception as e:
+            raise e
     def get_skill(self, param=None):
         try:
             if param == None:
@@ -687,7 +722,15 @@ class Lambda_Genesys():
                         "agent_name" : {"type" : "string"}
                     },
                     "required": [ "assignment_name", "agent_name"]
-                }  
+                } 
+            elif schema == "del_all_assignment":
+                schema_obj = {
+                    "type" : "object",
+                    "properties" : {
+                        "assignment_name" : {"type" : "string"},
+                    },
+                    "required": [ "assignment_name"]
+                }                  
             elif schema == "assignment_skill":
                 schema_obj = {
                     "type" : "object",
