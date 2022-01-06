@@ -6,6 +6,7 @@ import time
 from datetime import datetime
 from datetime import date
 from dateutil.relativedelta import relativedelta
+from dateutil import tz, parser
 from boto3.dynamodb.conditions import Key, Attr
 from jsonschema import validate, ValidationError, Draft7Validator, validators
 from decimal import Decimal
@@ -14,8 +15,8 @@ from concurrent.futures import ThreadPoolExecutor
 
 genesys_environment = "mypurecloud.com.au"
 token_url = f"https://login.{genesys_environment}/oauth/token"
-skills_url = f"https://api.{genesys_environment}/api/v2/routing/skills"
-agents_url = f"https://api.{genesys_environment}/api/v2/users"
+skills_url = f"https://api.{genesys_environment}/api/v2/routing/skills?pageSize=500"
+agents_url = f"https://api.{genesys_environment}/api/v2/users?pageSize=500"
 # routing_url = f"https://api.{genesys_environment}/api/v2/users/AGENT_ID/routingskills" 
 routing_url = f"https://api.{genesys_environment}/api/v2/users/AGENT_ID/routingskills/bulk" 
 env = {
@@ -255,7 +256,7 @@ class Lambda_Genesys():
             if "Item" in response:
                 raise Exception(f"assignment with the same name: {body_json['scheduled_name']} is already available")
             
-            next_runtime = self.__calc_nextruntime(body_json)
+            next_runtime = self.__calc_nextruntime_UTC(body_json)
             epoch_next_runtime = int(next_runtime.timestamp())
             body_json['p_key'] = "scheduled"
             body_json['next_runtime'] = epoch_next_runtime
@@ -263,9 +264,9 @@ class Lambda_Genesys():
             response = table.put_item(
                 Item=body_json
             )
-            start_time = body_json['start_time']
-            start_time_split = start_time.split(":")
-            self.__set_cron_job(body_json['scheduled_name'], start_time_split[0], start_time_split[1] )
+            # start_time = body_json['start_time']
+            # start_time_split = start_time.split(":")
+            # self.__set_cron_job(body_json['scheduled_name'], start_time_split[0], start_time_split[1] )
             response_json = response
             return response_json   
 
@@ -295,7 +296,7 @@ class Lambda_Genesys():
             if not "Item" in response:
                 raise Exception(f"No scheduled with the name: {param} is available")
             
-            next_runtime = self.__calc_nextruntime(body_json)
+            next_runtime = self.__calc_nextruntime_UTC(body_json)
             epoch_next_runtime = int(next_runtime.timestamp())
             body_json['p_key'] = "scheduled"
             body_json['scheduled_name'] = param
@@ -304,9 +305,9 @@ class Lambda_Genesys():
             response = table.put_item(
                 Item=body_json
             )
-            start_time = body_json['start_time']
-            start_time_split = start_time.split(":")
-            self.__set_cron_job(body_json['scheduled_name'], start_time_split[0], start_time_split[1] )
+            # start_time = body_json['start_time']
+            # start_time_split = start_time.split(":")
+            # self.__set_cron_job(body_json['scheduled_name'], start_time_split[0], start_time_split[1] )
             response_json = response
             return response_json   
 
@@ -591,10 +592,11 @@ class Lambda_Genesys():
                         "assignment_name" : {"type" : "string"},
                         "repeat_on" : {"type" : "array", "items" : {"type" : "string","enum" : ["0","1"]}, "minItems": 7},
                         "repeat_type" : {"type" : "string", "enum" : ["D", "W", "M", "Y"]},
+                        "date_utc" : {"type" : "string", "description": "Format - 2022-01-04T05:30:00.000Z"},
                         "start_dt" : {"type" : "ex_date", "description": "Format - YYYY-MM-DD"},
                         "start_time" : {"type" : "ex_time", "description": "Format - HH:MM"},
                     },
-                    "required": [ "scheduled_name","assignment_name", "repeat_on", "repeat_type", "start_dt", "start_time"]
+                    "required": [ "scheduled_name","assignment_name", "repeat_on", "repeat_type", "date_utc"]
                 }
             elif schema == "put_scheduled":
                 schema_obj = {
@@ -603,10 +605,11 @@ class Lambda_Genesys():
                         "assignment_name" : {"type" : "string"},
                         "repeat_on" : {"type" : "array", "items" : {"type" : "string","enum" : ["0","1"]}, "minItems": 7},
                         "repeat_type" : {"type" : "string", "enum" : ["D", "W", "M", "Y"]},
+                        "date_utc" : {"type" : "string", "description": "Format - 2022-01-04T05:30:00.000Z"},
                         "start_dt" : {"type" : "ex_date", "description": "Format - YYYY-MM-DD"},
                         "start_time" : {"type" : "ex_time", "description": "Format - HH:MM"},
                     },
-                    "required": [ "assignment_name", "repeat_on", "repeat_type", "start_dt", "start_time"]
+                    "required": [ "assignment_name", "repeat_on", "repeat_type", "date_utc"]
                 }                
             elif schema == "del_scheduled":
                 schema_obj = {
@@ -801,24 +804,96 @@ class Lambda_Genesys():
         # Run the new Validator
         Validator(schema=schema).validate(instance)
 
-    def __calc_nextruntime(self, param):
+    # def __calc_nextruntime(self, param):
+    #     try:
+    #         dt_start_datetime = datetime.strptime(f"{param['start_dt']}-{param['start_time']}", '%Y-%m-%d-%H:%M')
+    #         dt_start_date = datetime.strptime(f"{param['start_dt']}", '%Y-%m-%d')
+    #         dt_today_date = datetime.strptime(f"{date.today()}", '%Y-%m-%d')
+
+    #         print(f"dt_start_date: {dt_start_date}")
+    #         print(f"dt_today_date: {dt_today_date}")
+    #         if dt_start_date > dt_today_date:
+    #             delta_day = 0
+    #             dt_schedule = datetime.strptime(f"{param['start_dt']}-{param['start_time']}", '%Y-%m-%d-%H:%M')
+    #         else:
+    #             delta_day = 1
+    #             dt_schedule = datetime.strptime(f"{dt_today_date.year}-{dt_today_date.month}-{dt_today_date.day}-{param['start_time']}", '%Y-%m-%d-%H:%M')
+    #             if param['repeat_type'] == "M":
+    #                 dt_schedule = datetime.strptime(f"{dt_today_date.year}-{dt_today_date.month}-{dt_start_date.day}-{param['start_time']}", '%Y-%m-%d-%H:%M')
+    #             if param['repeat_type'] == "Y":
+    #                 dt_schedule = datetime.strptime(f"{dt_today_date.year}-{dt_start_date.month}-{dt_start_date.day}-{param['start_time']}", '%Y-%m-%d-%H:%M')
+    #             if dt_schedule > datetime.now():
+    #                 delta_day = 0
+
+    #         print(f"dt_now: {datetime.now()}")
+    #         print(f"dt_schedule: {dt_schedule}")
+    #         print(f"delta_day: {delta_day}")
+    #         if param['repeat_type'] == "D":
+    #             dt_schedule = dt_schedule + relativedelta(days=delta_day)
+    #             print(f"NEXT RUN TIME: {dt_schedule}")
+    #             return dt_schedule
+    #         elif param['repeat_type'] == "W":
+    #             #  week 0 to 6 -> 0-Monday, 6 - Sunday
+    #             print(f"dt_schedule.timetuple: {dt_schedule.timetuple()}")
+    #             time_tuple = dt_schedule.timetuple()
+    #             dt_today_day = time_tuple[6]
+    #             dt_next_day = dt_today_day + delta_day
+    #             if dt_next_day == 7:
+    #                 dt_next_day = 0
+    #             for i in range(0,7):
+    #                 if param['repeat_on'][dt_next_day] == "1":
+    #                     dt_schedule = dt_schedule + relativedelta(days=+ delta_day)
+    #                     print(f"NEXT RUN TIME: {dt_schedule}")
+    #                     return dt_schedule
+    #                 else:
+    #                     dt_next_day = dt_next_day + 1
+    #                     if dt_next_day > 6:
+    #                         dt_next_day = 0
+    #                 delta_day = delta_day + 1
+    #         elif param['repeat_type'] == "M":
+    #             dt_schedule_temp = datetime.strptime(f"{dt_schedule.year}-{dt_schedule.month}-{dt_start_datetime.day}-{param['start_time']}", '%Y-%m-%d-%H:%M')
+    #             dt_schedule = dt_schedule_temp + relativedelta(months=+delta_day)
+    #             print(f"NEXT RUN TIME: {dt_schedule}")
+    #             return dt_schedule
+    #         elif param['repeat_type'] == "Y":
+    #             dt_schedule_temp = datetime.strptime(f"{dt_schedule.year}-{dt_start_datetime.month}-{dt_start_datetime.day}-{param['start_time']}", '%Y-%m-%d-%H:%M')        
+    #             dt_schedule = dt_schedule + relativedelta(years=+delta_day)
+    #             print(f"NEXT RUN TIME: {dt_schedule}")            
+    #             return dt_schedule
+    #         else:
+    #             return dt_start_datetime
+    #     except Exception as e:
+    #         raise e 
+
+    def __calc_nextruntime_UTC(self, param):
         try:
-            dt_start_datetime = datetime.strptime(f"{param['start_dt']}-{param['start_time']}", '%Y-%m-%d-%H:%M')
-            dt_start_date = datetime.strptime(f"{param['start_dt']}", '%Y-%m-%d')
+            utc_time = parser.parse("2022-01-15T11:30:00.000Z")
+            dt_year = utc_time.year
+            dt_month = utc_time.month
+            dt_day = utc_time.day
+            dt_hours = utc_time.hour
+            dt_minutes = utc_time.minute 
+
+            p_utc_time = param['date_utc']
+            utc_time = parser.parse(p_utc_time)
+            p_start_dt = f"{utc_time.year}-{utc_time.month}-{utc_time.day}"
+            p_start_time = f"{utc_time.hour}:{utc_time.minute}" 
+            dt_start_datetime = datetime.strptime(f"{p_start_dt}-{p_start_time}", '%Y-%m-%d-%H:%M')
+            dt_start_date = datetime.strptime(f"{p_start_dt}", '%Y-%m-%d')
             dt_today_date = datetime.strptime(f"{date.today()}", '%Y-%m-%d')
 
             print(f"dt_start_date: {dt_start_date}")
             print(f"dt_today_date: {dt_today_date}")
             if dt_start_date > dt_today_date:
                 delta_day = 0
-                dt_schedule = datetime.strptime(f"{param['start_dt']}-{param['start_time']}", '%Y-%m-%d-%H:%M')
+                dt_schedule = datetime.strptime(f"{p_start_dt}-{p_start_time}", '%Y-%m-%d-%H:%M')
             else:
                 delta_day = 1
-                dt_schedule = datetime.strptime(f"{dt_today_date.year}-{dt_today_date.month}-{dt_today_date.day}-{param['start_time']}", '%Y-%m-%d-%H:%M')
+                dt_schedule = datetime.strptime(f"{dt_today_date.year}-{dt_today_date.month}-{dt_today_date.day}-{p_start_time}", '%Y-%m-%d-%H:%M')
                 if param['repeat_type'] == "M":
-                    dt_schedule = datetime.strptime(f"{dt_today_date.year}-{dt_today_date.month}-{dt_start_date.day}-{param['start_time']}", '%Y-%m-%d-%H:%M')
+                    dt_schedule = datetime.strptime(f"{dt_today_date.year}-{dt_today_date.month}-{dt_start_date.day}-{p_start_time}", '%Y-%m-%d-%H:%M')
                 if param['repeat_type'] == "Y":
-                    dt_schedule = datetime.strptime(f"{dt_today_date.year}-{dt_start_date.month}-{dt_start_date.day}-{param['start_time']}", '%Y-%m-%d-%H:%M')
+                    dt_schedule = datetime.strptime(f"{dt_today_date.year}-{dt_start_date.month}-{dt_start_date.day}-{p_start_time}", '%Y-%m-%d-%H:%M')
                 if dt_schedule > datetime.now():
                     delta_day = 0
 
@@ -848,12 +923,12 @@ class Lambda_Genesys():
                             dt_next_day = 0
                     delta_day = delta_day + 1
             elif param['repeat_type'] == "M":
-                dt_schedule_temp = datetime.strptime(f"{dt_schedule.year}-{dt_schedule.month}-{dt_start_datetime.day}-{param['start_time']}", '%Y-%m-%d-%H:%M')
+                dt_schedule_temp = datetime.strptime(f"{dt_schedule.year}-{dt_schedule.month}-{dt_start_datetime.day}-{p_start_time}", '%Y-%m-%d-%H:%M')
                 dt_schedule = dt_schedule_temp + relativedelta(months=+delta_day)
                 print(f"NEXT RUN TIME: {dt_schedule}")
                 return dt_schedule
             elif param['repeat_type'] == "Y":
-                dt_schedule_temp = datetime.strptime(f"{dt_schedule.year}-{dt_start_datetime.month}-{dt_start_datetime.day}-{param['start_time']}", '%Y-%m-%d-%H:%M')        
+                dt_schedule_temp = datetime.strptime(f"{dt_schedule.year}-{dt_start_datetime.month}-{dt_start_datetime.day}-{p_start_time}", '%Y-%m-%d-%H:%M')        
                 dt_schedule = dt_schedule + relativedelta(years=+delta_day)
                 print(f"NEXT RUN TIME: {dt_schedule}")            
                 return dt_schedule
@@ -1066,16 +1141,16 @@ class Lambda_Genesys():
             }
 
             skill_add_list = []
-            skill_remove_list = []
+            # skill_remove_list = []
             for skill in item_json['skills']:
                 body = {
                         "id": skill['skill_id'],
                         "proficiency": skill['proficiency']
                     }
-                if int(skill['proficiency']) > 0:
-                    skill_add_list.append(body)
-                else:
-                    skill_remove_list.append(body)
+                # if int(skill['proficiency']) > 0:
+                skill_add_list.append(body)
+                # else:
+                #     skill_remove_list.append(body)
             
             print(f"skill_add_list: {skill_add_list}")
             routing_url_temp = self.env["routing_url"]
@@ -1090,17 +1165,17 @@ class Lambda_Genesys():
                 print(f"Failure: { str(response.status_code) } - { response.reason }")
                 raise Exception(f"Failure routing: { str(response.status_code) } - { response.reason }")
 
-            if len(skill_remove_list) > 0:
-                # if we are planning to use PATCH, then we have to delete the users with prociency 0.
-                # DELETE /api/v2/users/{userId}/routingskills/{skillId} -> Remove routing skill from user
-                pass
+            # if len(skill_remove_list) > 0:
+            #     # if we are planning to use PATCH, then we have to delete the users with prociency 0.
+            #     # DELETE /api/v2/users/{userId}/routingskills/{skillId} -> Remove routing skill from user
+            #     pass
 
         except Exception as e:
             raise e                
 
     def __update_scheduled(self, item_json):
         try:
-            next_runtime = self.__calc_nextruntime(item_json)
+            next_runtime = self.__calc_nextruntime_UTC(item_json)
             epoch_next_runtime = int(next_runtime.timestamp())
             print(f"NEXT RUNTIME: {next_runtime}")
             dynamodb = boto3.resource(
@@ -1176,35 +1251,37 @@ class Lambda_Genesys():
 
     def get_test(self):
         try:
-            dynamodb = boto3.resource(
-                'dynamodb', 
-                region_name = self.env['region'],
-            )            
-            table = dynamodb.Table('Genesys_assignment')
-            skill = {
-                "DMSkill4": {
-                    "proficiency": "1",
-                    "skill_id": "1a8b49f2-7b66-41d3-b1b6-c519c5da78b6"
-                },
-                "DMSkill5": {
-                    "skill_id": "97163e08-77f9-46c3-9dd7-106d67484771",
-                    "proficiency": "2"
-                }
-            }
-            response = table.update_item(
-                Key={
-                    'assignment_name': "assignment_11",
-                    'agent_name': "Karuna"
-                },
-                UpdateExpression="SET #skills=:s_prof",
-                ExpressionAttributeNames={
-                    "#skills": "skills"
-                    },
-                ExpressionAttributeValues={
-                    ':s_prof': skill,
-                }
-            )  
+            dt_time = datetime.now()
+            to_zone = tz.gettz('Asia/Kolkata')
+            to_dt = datetime.now(tz=to_zone)
+            dt_utc = parser.parse("2022-01-15T11:30:00.000Z")
+            dt_year = dt_utc.year
+            dt_month = dt_utc.month
+            dt_day = dt_utc.day
+            dt_hours = dt_utc.hour
+            dt_minutes = dt_utc.minute   
 
+            param =    {
+                "p_key": "scheduled",
+                "scheduled_name": "TeleappsTest",
+                "date_utc": "2022-01-05T11:30:00.000Z",
+                "assignment_name": "Demo2",
+                "repeat_type": "D",
+                "repeat_on": [
+                "0",
+                "0",
+                "0",
+                "0",
+                "0",
+                "0",
+                "0"
+                ],
+                "start_time": "17:00",
+                "last_runtime": 0,
+                "next_runtime": 1642266000,
+                "start_dt": "2022-01-15"
+                }
+            next_runtime = self.__calc_nextruntime_UTC(param)             
             # Karuna - working
             # response = table.update_item(
             #     Key={
@@ -1219,6 +1296,16 @@ class Lambda_Genesys():
             #         ':s_prof': "1",
             #     }
             # )            
-            return {"message":"put_target success"}
+            return {
+                "IST": str(to_dt), 
+                "UTC": str(dt_time), 
+                "dt_utc": str(dt_utc), 
+                "year": str(dt_year), 
+                "month": str(dt_month), 
+                "day": str(dt_day) , 
+                "dt_hours": str(dt_hours), 
+                "dt_minutes": str(dt_minutes),
+                "next_runtime": str(next_runtime)
+                }
         except Exception as e:
             raise e                
