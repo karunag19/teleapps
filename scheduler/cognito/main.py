@@ -8,10 +8,14 @@ from dateutil.tz import tzlocal
 from jsonschema import validate, ValidationError
 
 secret_dic = {}
+region = os.getenv('REGION', "ap-southeast-2") 
+secret_client = os.getenv('SECRET_CLIENT', "karuna_secret_key") 
+user_pool_id = os.getenv('USER_POOL_ID', "ap-southeast-2_iWwopKLsU") 
+
 env = {
-    "secret_client_key" : "karuna_secret_key",
-    "region" : "ap-southeast-2",
-    "user_pool_id" : "ap-southeast-2_iWwopKLsU"
+    "secret_client_key" : secret_client,
+    "region" : region,
+    "user_pool_id" : user_pool_id
 }
 
 def lambda_handler(event, context):
@@ -90,6 +94,20 @@ class Lambda_Cognito():
                 return result
         except Exception as e:
             raise e        
+    def post_software_token(self):
+        try:
+            if self.event.get('body', None) == None:
+                raise Exception(f"You have to pass the data as JSON in body")
+            body_json = json.loads(self.event.get('body'))
+            # self.__validate_schema("user_create", body_json)  
+            # print("After __validate_schema")             
+            response = self.client.associate_software_token(
+                AccessToken = body_json['access_token'],
+            )
+            return response    
+
+        except Exception as e:
+            raise e
 
     def get_users(self):
         try:

@@ -41,10 +41,14 @@ To check using curl:
 To create packages:
     sam package --template-file <template file name> --output-template-file <output file name> --s3-bucket <s3 bucket name>
     sam package --template-file template.yaml --output-template-file deploy.yaml --s3-bucket deployment-teleapps-schedule
+    sam package --template-file template_temp.yaml --output-template-file deploy_temp.yaml --s3-bucket deployment-teleapps-temp
 
 To deploy packages:
     sam deploy --template-file deploy.yaml --stack-name MySAMLambdaStack --capabilities CAPABILITY_IAM
     sam deploy --template-file deploy.yaml --stack-name TeleApps-Schedule --capabilities CAPABILITY_IAM
+    sam deploy --template-file deploy_temp.yaml --stack-name TeleApps-Temp --capabilities CAPABILITY_IAM
+    Guided deployment:
+    sam deploy --template-file template_temp.yaml -g
 
 Reference:
     https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
@@ -59,3 +63,10 @@ Install Packages as Layer:
 Role:
     If you got error "provided role cannot be assumed by principal" when you create corn job, in IAM role you have to 
     add  "events.amazonaws.com" in "Trusted Relationships"
+
+To Enable "Time Based One Time Password"
+    From access token get "SecretCode" using "associate_software_token" api method.
+    Once you got the secret token: -> use google authenticator and pass the secrete key, it will start generate code.
+    Call "verify_software_token" method and pass the google authenticator code.
+    It would return "SUCCESS"
+    

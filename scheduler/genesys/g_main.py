@@ -1,3 +1,4 @@
+import os
 import base64, requests
 import boto3
 import json
@@ -13,21 +14,25 @@ from decimal import Decimal
 
 from concurrent.futures import ThreadPoolExecutor
 
-genesys_environment = "mypurecloud.com.au"
+genesys_environment = os.getenv('GENESYS_ENV', "mypurecloud.com.au") 
+region = os.getenv('REGION', "ap-southeast-2") 
+secret_client = os.getenv('SECRET_CLIENT', "karuna_secret_key") 
+secret_token = os.getenv('SECRET_TOKEN', "g_access_key") 
+
 token_url = f"https://login.{genesys_environment}/oauth/token"
 skills_url = f"https://api.{genesys_environment}/api/v2/routing/skills?pageSize=500"
 agents_url = f"https://api.{genesys_environment}/api/v2/users?pageSize=500"
 # routing_url = f"https://api.{genesys_environment}/api/v2/users/AGENT_ID/routingskills" 
 routing_url = f"https://api.{genesys_environment}/api/v2/users/AGENT_ID/routingskills/bulk" 
 env = {
-    "secret_client_key" : "karuna_secret_key",
-    "secret_token_key" : "g_access_key",
-    "genesys_environment" : "mypurecloud.com.au",
+    "secret_client_key" : secret_client,
+    "secret_token_key" : secret_token,
+    "genesys_environment" : genesys_environment,
     "token_url" : token_url,
     "skills_url" : skills_url,
     "agents_url" : agents_url,
     "routing_url" : routing_url,
-    "region" : "ap-southeast-2"
+    "region" : region
 }
 
 def lambda_handler(event, context):
@@ -1251,37 +1256,37 @@ class Lambda_Genesys():
 
     def get_test(self):
         try:
-            dt_time = datetime.now()
-            to_zone = tz.gettz('Asia/Kolkata')
-            to_dt = datetime.now(tz=to_zone)
-            dt_utc = parser.parse("2022-01-15T11:30:00.000Z")
-            dt_year = dt_utc.year
-            dt_month = dt_utc.month
-            dt_day = dt_utc.day
-            dt_hours = dt_utc.hour
-            dt_minutes = dt_utc.minute   
+            # dt_time = datetime.now()
+            # to_zone = tz.gettz('Asia/Kolkata')
+            # to_dt = datetime.now(tz=to_zone)
+            # dt_utc = parser.parse("2022-01-15T11:30:00.000Z")
+            # dt_year = dt_utc.year
+            # dt_month = dt_utc.month
+            # dt_day = dt_utc.day
+            # dt_hours = dt_utc.hour
+            # dt_minutes = dt_utc.minute   
 
-            param =    {
-                "p_key": "scheduled",
-                "scheduled_name": "TeleappsTest",
-                "date_utc": "2022-01-05T11:30:00.000Z",
-                "assignment_name": "Demo2",
-                "repeat_type": "D",
-                "repeat_on": [
-                "0",
-                "0",
-                "0",
-                "0",
-                "0",
-                "0",
-                "0"
-                ],
-                "start_time": "17:00",
-                "last_runtime": 0,
-                "next_runtime": 1642266000,
-                "start_dt": "2022-01-15"
-                }
-            next_runtime = self.__calc_nextruntime_UTC(param)             
+            # param =    {
+            #     "p_key": "scheduled",
+            #     "scheduled_name": "TeleappsTest",
+            #     "date_utc": "2022-01-05T11:30:00.000Z",
+            #     "assignment_name": "Demo2",
+            #     "repeat_type": "D",
+            #     "repeat_on": [
+            #     "0",
+            #     "0",
+            #     "0",
+            #     "0",
+            #     "0",
+            #     "0",
+            #     "0"
+            #     ],
+            #     "start_time": "17:00",
+            #     "last_runtime": 0,
+            #     "next_runtime": 1642266000,
+            #     "start_dt": "2022-01-15"
+            #     }
+            # next_runtime = self.__calc_nextruntime_UTC(param)             
             # Karuna - working
             # response = table.update_item(
             #     Key={
@@ -1295,17 +1300,11 @@ class Lambda_Genesys():
             #     ExpressionAttributeValues={
             #         ':s_prof': "1",
             #     }
-            # )            
+            # ) 
+            import os           
             return {
-                "IST": str(to_dt), 
-                "UTC": str(dt_time), 
-                "dt_utc": str(dt_utc), 
-                "year": str(dt_year), 
-                "month": str(dt_month), 
-                "day": str(dt_day) , 
-                "dt_hours": str(dt_hours), 
-                "dt_minutes": str(dt_minutes),
-                "next_runtime": str(next_runtime)
+                "Message": os.getenv('GENESYS_ENV', "default_value"), 
+                "Message_g": os.getenv('REGION', "default_value_g"), 
                 }
         except Exception as e:
             raise e                

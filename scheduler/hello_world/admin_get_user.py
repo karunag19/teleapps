@@ -7,6 +7,7 @@ load_dotenv()
 
 keyId = os.environ.get("CLIENT_ID")
 sKeyId=os.environ.get("SECRET_KEY")
+userPool = os.environ.get("USER_POOL")
 region = 'ap-southeast-2'
  
 try:
@@ -18,7 +19,7 @@ try:
     )
 
     response = client.admin_get_user(
-        UserPoolId = 'ap-southeast-2_iWwopKLsU',
+        UserPoolId = userPool,
         Username = 'karunag19@gmail.com'
     )
     print(response)

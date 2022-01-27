@@ -1,0 +1,88 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: 'scheduler
+
+  Sample SAM Template for scheduler
+
+  '
+Globals:
+  Function:
+    Timeout: 10
+    Environment:
+      Variables:
+        REGION: ap-southeast-2
+        SECRET_CLIENT: karuna_secret_key
+Parameters:
+  CustomerName:
+    Type: String
+    Description: Name of the customer
+  ClientDomains:
+    Type: CommaDelimitedList
+    Description: Array of domains allowed to use this UserPool
+  AdminEmail:
+    Type: String
+    Description: Email address for administrator
+Resources:
+  MyCognitoUserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName:
+        Fn::Sub: ${CustomerName}-UserPool
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 8
+      AutoVerifiedAttributes:
+      - email
+      UsernameAttributes:
+      - email
+      Schema:
+      - AttributeDataType: String
+        Name: email
+        Required: false
+  MyCognitoUserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      UserPoolId:
+        Ref: MyCognitoUserPool
+      ClientName:
+        Fn::Sub: ${CustomerName}-UserPoolClient
+      GenerateSecret: false
+      SupportedIdentityProviders:
+      - COGNITO
+      CallbackURLs:
+        Ref: ClientDomains
+      LogoutURLs:
+        Ref: ClientDomains
+      AllowedOAuthFlowsUserPoolClient: true
+      AllowedOAuthFlows:
+      - implicit
+      AllowedOAuthScopes:
+      - email
+      - openid
+      - profile
+  UserPoolDomain:
+    Type: AWS::Cognito::UserPoolDomain
+    Properties:
+      Domain:
+        Fn::Sub: ${CustomerName}.gc-teleapps.net
+      UserPoolId:
+        Ref: MyCognitoUserPool
+  AdminUser:
+    Type: AWS::Cognito::UserPoolUser
+    Properties:
+      Username:
+        Ref: AdminEmail
+      DesiredDeliveryMediums:
+      - EMAIL
+      ForceAliasCreation: true
+      UserAttributes:
+      - Name: email
+        Value:
+          Ref: AdminEmail
+      UserPoolId:
+        Ref: MyCognitoUserPool
+Outputs:
+  UserPoolId:
+    Description: User Pool ID
+    Value:
+      Ref: MyCognitoUserPool

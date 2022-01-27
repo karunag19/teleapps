@@ -8,6 +8,10 @@ Description: 'scheduler
 Globals:
   Function:
     Timeout: 10
+    Environment:
+      Variables:
+        REGION: ap-southeast-2
+        SECRET_CLIENT: karuna_secret_key
 Resources:
   UsersFunction:
     Type: AWS::Serverless::Function
@@ -15,11 +19,14 @@ Resources:
       FunctionName: Users
       Description: Create, Delete, List & Reset admin users
       Role: arn:aws:iam::070618480609:role/TeleApps-Schedule
-      CodeUri: s3://deployment-teleapps-schedule/f92f4c1711a90c099522ae88715d66f6
+      CodeUri: s3://deployment-teleapps-schedule/3414c9baab332b8b87b8ba990d33eec5
       Handler: main.lambda_handler
       Layers:
       - Ref: AppDepLayer
       Runtime: python3.8
+      Environment:
+        Variables:
+          USER_POOL_ID: ap-southeast-2_iWwopKLsU
       Events:
         GetUsersAPI:
           Type: Api
@@ -33,11 +40,15 @@ Resources:
       Description: All Genesys related functions like get agents, skill, schedule,
         task etc..
       Role: arn:aws:iam::070618480609:role/TeleApps-Schedule
-      CodeUri: s3://deployment-teleapps-schedule/2d8907fd9488b297995d709396979326
+      CodeUri: s3://deployment-teleapps-schedule/407ade283e4a028f7587ea9105cfd114
       Handler: g_main.lambda_handler
       Layers:
       - Ref: AppDepLayer
       Runtime: python3.8
+      Environment:
+        Variables:
+          GENESYS_ENV: mypurecloud.com.au
+          SECRET_TOKEN: g_access_key
       Events:
         GetUsersAPI:
           Type: Api
@@ -57,7 +68,7 @@ Resources:
   HelloWorldFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: s3://deployment-teleapps-schedule/f566bc171ef323366432c62340947829
+      CodeUri: s3://deployment-teleapps-schedule/32e0b6a5e7c030f71ac8e93870f5d5aa
       Handler: app.lambda_handler
       Runtime: python3.8
       Architectures:

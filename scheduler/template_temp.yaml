@@ -1,0 +1,155 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  scheduler
+
+  Sample SAM Template for scheduler
+# More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
+Globals:
+  Function:
+    Timeout: 10
+    Environment:
+      Variables:
+        REGION: "ap-southeast-2"  
+        SECRET_CLIENT: "karuna_secret_key"  
+
+Parameters:
+  CustomerName:
+    Type: String
+    Description: Name of the customer
+  ClientDomains:
+    Type: CommaDelimitedList
+    Description: Array of domains allowed to use this UserPool
+  AdminEmail:
+    Type: String
+    Description: Email address for administrator
+
+Resources:
+  MyCognitoUserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName: !Sub ${CustomerName}-UserPool
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 8
+      AutoVerifiedAttributes:
+        - email
+      UsernameAttributes:
+        - email
+      Schema:
+        - AttributeDataType: String
+          Name: email
+          Required: false
+    
+  MyCognitoUserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      UserPoolId: !Ref MyCognitoUserPool
+      ClientName: !Sub ${CustomerName}-UserPoolClient
+      GenerateSecret: false
+      SupportedIdentityProviders:
+        - COGNITO
+      CallbackURLs: !Ref ClientDomains
+      LogoutURLs: !Ref ClientDomains
+      AllowedOAuthFlowsUserPoolClient: true
+      AllowedOAuthFlows:
+        - implicit
+      AllowedOAuthScopes:
+        - email
+        - openid
+        - profile
+      ExplicitAuthFlows:
+        - ALLOW_USER_PASSWORD_AUTH
+        - ALLOW_REFRESH_TOKEN_AUTH
+
+  UserPoolDomain:
+    Type: AWS::Cognito::UserPoolDomain
+    Properties:
+      Domain: !Sub ${CustomerName}-${AWS::AccountId}
+      UserPoolId: !Ref MyCognitoUserPool
+
+  AdminUser:
+    Type: AWS::Cognito::UserPoolUser
+    Properties:
+      Username: !Ref AdminEmail
+      DesiredDeliveryMediums:
+        - EMAIL
+      ForceAliasCreation: true
+      UserAttributes:
+        - Name: email
+          Value: !Ref AdminEmail
+      UserPoolId: !Ref MyCognitoUserPool
+
+Outputs:
+  UserPoolId:
+    Description: "User Pool ID"
+    Value: !Ref MyCognitoUserPool
+
+
+  # MyApi:
+  #   Type: AWS::Serverless::Api
+  #   Properties:
+  #     StageName: Prod
+  #     Cors: "'*'"
+  #     Auth:
+  #       DefaultAuthorizer: MyCognitoAuthorizer
+  #       Authorizers:
+  #         MyCognitoAuthorizer:
+  #           UserPoolArn: !GetAtt MyCognitoUserPool.Arn
+
+  # UsersFunction:
+  #   Type: AWS::Serverless::Function 
+  #   Properties:
+  #     FunctionName: Users
+  #     Description: Create, Delete, List & Reset admin users
+  #     Role: arn:aws:iam::070618480609:role/TeleApps-Schedule
+  #     CodeUri: cognito/
+  #     Handler: main.lambda_handler
+  #     Layers:
+  #       - !Ref AppDepLayer       
+  #     Runtime: python3.8
+  #     Environment:
+  #       Variables:
+  #         USER_POOL_ID: "ap-southeast-2_iWwopKLsU"
+  #     Events:
+  #       GetUsersAPI:
+  #         Type: Api 
+  #         Properties:
+  #           Path: /cognito/{proxy+}
+  #           Method: 'ANY'
+
+  # GenesysFunction:
+  #   Type: AWS::Serverless::Function 
+  #   Properties:
+  #     FunctionName: Genesys
+  #     Description: All Genesys related functions like get agents, skill, schedule, task etc..
+  #     Role: arn:aws:iam::070618480609:role/TeleApps-Schedule
+  #     CodeUri: genesys/
+  #     Handler: g_main.lambda_handler
+  #     Layers:
+  #       - !Ref AppDepLayer      
+  #     Runtime: python3.8
+  #     Environment:
+  #       Variables:
+  #         GENESYS_ENV: "mypurecloud.com.au" 
+  #         SECRET_TOKEN: "g_access_key"     
+  #     Events:
+  #       GetUsersAPI:
+  #         Type: Api 
+  #         Properties:
+  #           Path: /genesys/{proxy+}
+  #           Method: 'ANY'            
+
+  # AppDepLayer:
+  #   Type: AWS::Serverless::LayerVersion
+  #   Properties:
+  #     LayerName: sam-app-dependencies
+  #     Description: Dependencies for sam app [requets]
+  #     ContentUri: dependencies/
+  #     CompatibleRuntimes:
+  #       - python3.8
+  #     LicenseInfo: 'MIT'
+  #     RetentionPolicy: Retain
+
+
+

@@ -8,6 +8,10 @@ Description: >
 Globals:
   Function:
     Timeout: 10
+    Environment:
+      Variables:
+        REGION: "ap-southeast-2"  
+        SECRET_CLIENT: "karuna_secret_key"  
 
 Resources:
   UsersFunction:
@@ -21,6 +25,9 @@ Resources:
       Layers:
         - !Ref AppDepLayer       
       Runtime: python3.8
+      Environment:
+        Variables:
+          USER_POOL_ID: "ap-southeast-2_iWwopKLsU"
       Events:
         GetUsersAPI:
           Type: Api 
@@ -39,6 +46,10 @@ Resources:
       Layers:
         - !Ref AppDepLayer      
       Runtime: python3.8
+      Environment:
+        Variables:
+          GENESYS_ENV: "mypurecloud.com.au" 
+          SECRET_TOKEN: "g_access_key"     
       Events:
         GetUsersAPI:
           Type: Api 
