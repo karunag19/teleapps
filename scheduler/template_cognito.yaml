@@ -68,6 +68,14 @@ Resources:
       Domain: !Sub ${CustomerName}-${AWS::AccountId}
       UserPoolId: !Ref MyCognitoUserPool
 
+  AdminUserGroup:
+    Type: AWS::Cognito::UserPoolGroup
+    Properties:
+      GroupName: Admins
+      Description: Admin User Group
+      Precedence: 0
+      UserPoolId: !Ref MyCognitoUserPool
+
   AdminUser:
     Type: AWS::Cognito::UserPoolUser
     Properties:
@@ -80,11 +88,25 @@ Resources:
           Value: !Ref AdminEmail
       UserPoolId: !Ref MyCognitoUserPool
 
+  AddUserToGroup:
+    Type: AWS::Cognito::UserPoolUserToGroupAttachment
+    Properties:
+      GroupName: !Ref AdminUserGroup
+      Username: !Ref AdminUser
+      UserPoolId: !Ref MyCognitoUserPool
+
 Outputs:
   UserPoolId:
     Description: "User Pool ID"
     Value: !Ref MyCognitoUserPool
 
+  UserPoolClientId:
+    Description: "Application client ID"
+    Value: !Ref MyCognitoUserPoolClient
+
+  AuthenticationURL:
+    Description: "URL used for Authentication"
+    Value: !Sub https://${UserPoolDomain}.auth.${AWS::Region}.amazoncognito.com
 
   # MyApi:
   #   Type: AWS::Serverless::Api

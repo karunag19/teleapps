@@ -48,7 +48,7 @@ To deploy packages:
     sam deploy --template-file deploy.yaml --stack-name TeleApps-Schedule --capabilities CAPABILITY_IAM
     sam deploy --template-file deploy_temp.yaml --stack-name TeleApps-Temp --capabilities CAPABILITY_IAM
     Guided deployment:
-    sam deploy --template-file template_temp.yaml -g
+    sam deploy --template-file template_cognito.yaml -g
 
 Reference:
     https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
