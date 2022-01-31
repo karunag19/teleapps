@@ -5,14 +5,6 @@ Description: >
 
   Sample SAM Template for scheduler
 # More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
-Globals:
-  Function:
-    Timeout: 10
-    Environment:
-      Variables:
-        REGION: "ap-southeast-2"  
-        SECRET_CLIENT: "karuna_secret_key"  
-
 Parameters:
   CustomerName:
     Type: String
@@ -23,6 +15,23 @@ Parameters:
   AdminEmail:
     Type: String
     Description: Email address for administrator
+  Role:
+    Type: String
+    Description: AWS Role ARN
+  Region:
+    Type: String
+    Description: Name of the Region
+  GC_Env:
+    Type: String
+    Description: Name of Genesys Cloud Environment
+
+Globals:
+  Function:
+    Timeout: 10
+    Environment:
+      Variables:
+        REGION: !Ref Region  
+        SECRET_CLIENT: !Sub ${CustomerName}-Secret  
 
 Resources:
   MyCognitoUserPool:
@@ -95,10 +104,134 @@ Resources:
       Username: !Ref AdminUser
       UserPoolId: !Ref MyCognitoUserPool
 
+  SecretManager:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name:  !Sub ${CustomerName}-Secret
+      Description: "Store application key & Genesys key details"
+      SecretString: '{"CLIENT_ID":"","SECRET_KEY":"", "USER_POOL_ID":"", "GENESYS_CLIENT_ID":"", "GENESYS_SECRET":""}'
+
+  SecretManagerKey:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name:  !Sub ${CustomerName}-AccessToken
+      Description: "Store application key & Genesys key details"
+      SecretString: '{"access_token":"","token_type":"", "expires_in":"", "expires_time":""}'
+
+  DynamoDBTableAssignment:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub ${CustomerName}_gc_assignment  
+      AttributeDefinitions: 
+        - AttributeName: assignment_name
+          AttributeType: S
+        - AttributeName: agent_name
+          AttributeType: S          
+      KeySchema: 
+        - AttributeName: assignment_name
+          KeyType: HASH
+        - AttributeName: agent_name
+          KeyType: RANGE
+      ProvisionedThroughput: 
+        ReadCapacityUnits: 10
+        WriteCapacityUnits: 5
+
+  DynamoDBTableAssignmentSkill:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub ${CustomerName}_gc_assignment_skill  
+      AttributeDefinitions: 
+        - AttributeName: assignment_name
+          AttributeType: S
+        - AttributeName: agent_name
+          AttributeType: S          
+      KeySchema: 
+        - AttributeName: assignment_name
+          KeyType: HASH
+        - AttributeName: agent_name
+          KeyType: RANGE
+      ProvisionedThroughput: 
+        ReadCapacityUnits: 10
+        WriteCapacityUnits: 5
+
+  DynamoDBTableAssignmentScheduled: 
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub ${CustomerName}_gc_scheduled 
+      AttributeDefinitions: 
+        - AttributeName: p_key
+          AttributeType: S
+        - AttributeName: scheduled_name
+          AttributeType: S          
+      KeySchema: 
+        - AttributeName: p_key
+          KeyType: HASH
+        - AttributeName: scheduled_name
+          KeyType: RANGE
+      ProvisionedThroughput: 
+        ReadCapacityUnits: 10
+        WriteCapacityUnits: 5
+
+  UsersFunction:
+    Type: AWS::Serverless::Function 
+    Properties:
+      FunctionName: Users
+      Description: Create, Delete, List & Reset admin users
+      Role: !Ref Role
+      CodeUri: cognito/
+      Handler: main.lambda_handler
+      Layers:
+        - !Ref AppDepLayer       
+      Runtime: python3.8
+      Environment:
+        Variables:
+          USER_POOL_ID: !Ref MyCognitoUserPool
+      Events:
+        GetUsersAPI:
+          Type: Api 
+          Properties:
+            Path: /cognito/{proxy+}
+            Method: 'ANY'
+
+  GenesysFunction:
+    Type: AWS::Serverless::Function 
+    Properties:
+      FunctionName: Genesys
+      Description: All Genesys related functions like get agents, skill, schedule, task etc..
+      Role: !Ref Role
+      CodeUri: genesys/
+      Handler: g_main.lambda_handler
+      Layers:
+        - !Ref AppDepLayer      
+      Runtime: python3.8
+      Environment:
+        Variables:
+          GENESYS_ENV: !Ref GC_Env
+          SECRET_TOKEN: !Sub ${CustomerName}-AccessToken     
+      Events:
+        GetUsersAPI:
+          Type: Api 
+          Properties:
+            Path: /genesys/{proxy+}
+            Method: 'ANY'            
+
+  AppDepLayer:
+      Type: AWS::Serverless::LayerVersion
+      Properties:
+          LayerName: sam-app-dependencies
+          Description: Dependencies for sam app [requets]
+          ContentUri: dependencies/
+          CompatibleRuntimes:
+            - python3.8
+          LicenseInfo: 'MIT'
+          RetentionPolicy: Retain
+
 Outputs:
   UserPoolId:
     Description: "User Pool ID"
     Value: !Ref MyCognitoUserPool
+    Export:
+      Name: !Sub ${CustomerName}:UserPoolId
 
   UserPoolClientId:
     Description: "Application client ID"
@@ -107,71 +240,4 @@ Outputs:
   AuthenticationURL:
     Description: "URL used for Authentication"
     Value: !Sub https://${UserPoolDomain}.auth.${AWS::Region}.amazoncognito.com
-
-  # MyApi:
-  #   Type: AWS::Serverless::Api
-  #   Properties:
-  #     StageName: Prod
-  #     Cors: "'*'"
-  #     Auth:
-  #       DefaultAuthorizer: MyCognitoAuthorizer
-  #       Authorizers:
-  #         MyCognitoAuthorizer:
-  #           UserPoolArn: !GetAtt MyCognitoUserPool.Arn
-
-  # UsersFunction:
-  #   Type: AWS::Serverless::Function 
-  #   Properties:
-  #     FunctionName: Users
-  #     Description: Create, Delete, List & Reset admin users
-  #     Role: arn:aws:iam::070618480609:role/TeleApps-Schedule
-  #     CodeUri: cognito/
-  #     Handler: main.lambda_handler
-  #     Layers:
-  #       - !Ref AppDepLayer       
-  #     Runtime: python3.8
-  #     Environment:
-  #       Variables:
-  #         USER_POOL_ID: "ap-southeast-2_iWwopKLsU"
-  #     Events:
-  #       GetUsersAPI:
-  #         Type: Api 
-  #         Properties:
-  #           Path: /cognito/{proxy+}
-  #           Method: 'ANY'
-
-  # GenesysFunction:
-  #   Type: AWS::Serverless::Function 
-  #   Properties:
-  #     FunctionName: Genesys
-  #     Description: All Genesys related functions like get agents, skill, schedule, task etc..
-  #     Role: arn:aws:iam::070618480609:role/TeleApps-Schedule
-  #     CodeUri: genesys/
-  #     Handler: g_main.lambda_handler
-  #     Layers:
-  #       - !Ref AppDepLayer      
-  #     Runtime: python3.8
-  #     Environment:
-  #       Variables:
-  #         GENESYS_ENV: "mypurecloud.com.au" 
-  #         SECRET_TOKEN: "g_access_key"     
-  #     Events:
-  #       GetUsersAPI:
-  #         Type: Api 
-  #         Properties:
-  #           Path: /genesys/{proxy+}
-  #           Method: 'ANY'            
-
-  # AppDepLayer:
-  #   Type: AWS::Serverless::LayerVersion
-  #   Properties:
-  #     LayerName: sam-app-dependencies
-  #     Description: Dependencies for sam app [requets]
-  #     ContentUri: dependencies/
-  #     CompatibleRuntimes:
-  #       - python3.8
-  #     LicenseInfo: 'MIT'
-  #     RetentionPolicy: Retain
-
-
 
