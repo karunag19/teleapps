@@ -21,7 +21,7 @@ Parameters:
   Region:
     Type: String
     Description: Name of the Region
-  GC_Env:
+  GCEnv:
     Type: String
     Description: Name of Genesys Cloud Environment
 
@@ -172,10 +172,25 @@ Resources:
         ReadCapacityUnits: 10
         WriteCapacityUnits: 5
 
+  ServiceApi:
+    DependsOn: MyCognitoUserPool
+    Type: AWS::Serverless::Api
+    Properties:
+      Name: !Sub ${CustomerName}-ServiceApi
+      StageName: Testing
+      Cors:
+        AllowMethods: "'*'"
+        AllowHeaders: "'*'"
+        AllowOrigin: "'*'"
+      Auth:
+        Authorizers:
+          CognitoAuthorizer:
+            UserPoolArn: !GetAtt "MyCognitoUserPool.Arn"
+
   UsersFunction:
     Type: AWS::Serverless::Function 
     Properties:
-      FunctionName: Users
+      FunctionName: !Sub ${CustomerName}_Users
       Description: Create, Delete, List & Reset admin users
       Role: !Ref Role
       CodeUri: cognito/
@@ -192,11 +207,14 @@ Resources:
           Properties:
             Path: /cognito/{proxy+}
             Method: 'ANY'
+            RestApiId: !Ref ServiceApi
+            Auth:
+              Authorizer: CognitoAuthorizer
 
   GenesysFunction:
     Type: AWS::Serverless::Function 
     Properties:
-      FunctionName: Genesys
+      FunctionName: !Sub ${CustomerName}_Genesys
       Description: All Genesys related functions like get agents, skill, schedule, task etc..
       Role: !Ref Role
       CodeUri: genesys/
@@ -206,14 +224,17 @@ Resources:
       Runtime: python3.8
       Environment:
         Variables:
-          GENESYS_ENV: !Ref GC_Env
+          GENESYS_ENV: !Ref GCEnv
           SECRET_TOKEN: !Sub ${CustomerName}-AccessToken     
       Events:
         GetUsersAPI:
           Type: Api 
           Properties:
             Path: /genesys/{proxy+}
-            Method: 'ANY'            
+            Method: 'ANY' 
+            RestApiId: !Ref ServiceApi
+            Auth:
+              Authorizer: CognitoAuthorizer           
 
   AppDepLayer:
       Type: AWS::Serverless::LayerVersion
@@ -225,6 +246,7 @@ Resources:
             - python3.8
           LicenseInfo: 'MIT'
           RetentionPolicy: Retain
+
 
 Outputs:
   UserPoolId:
