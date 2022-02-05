@@ -83,6 +83,7 @@ class Lambda_Genesys():
         self.env = env
 
         try:
+            print("INIT START")
             client = boto3.client(
                 'secretsmanager', 
                 region_name = self.env['region'],
@@ -96,10 +97,13 @@ class Lambda_Genesys():
                 )
             self.secret_token = json.loads(secret_response['SecretString'])  
 
-            token_ex_time = int(self.secret_token['expires_time'])
+            if self.secret_token['expires_time'] == '':
+                token_ex_time = 0
+            else:
+                token_ex_time = int(self.secret_token['expires_time'])
             if time.time() >  token_ex_time:
                 self.__update_token()    
-
+            print("INIT COMPLETED")
         except Exception as e:
             raise e 
 
@@ -130,8 +134,8 @@ class Lambda_Genesys():
 
     def __update_token(self):
         try:
-            keyId = self.secret_client['CLIENT_ID']
-            sKeyId = self.secret_client['SECRET_KEY']
+            # keyId = self.secret_client['CLIENT_ID']
+            # sKeyId = self.secret_client['SECRET_KEY']
             access_token = self.__get_token()
             
             expires_in = access_token['expires_in']
@@ -155,7 +159,6 @@ class Lambda_Genesys():
 
     def __get_token(self):
         try:
-            print("__get_token")
             GENESYS_CLIENT_ID = self.secret_client['GENESYS_CLIENT_ID']
             GENESYS_SECRET = self.secret_client['GENESYS_SECRET']
             # GENESYS_CLIENT_ID = 'd684b8b1-2ac2-4476-b8a7-60a2eb498a45'
