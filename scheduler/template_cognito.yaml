@@ -192,7 +192,22 @@ Resources:
     Properties:
       FunctionName: !Sub ${CustomerName}_Users
       Description: Create, Delete, List & Reset admin users
-      Role: !Ref Role
+      # Role: !Ref Role
+      Policies:
+        - Statement:
+          - Sid: GetSecretKey
+            Effect: Allow
+            Action:
+              - secretsmanager:GetSecretValue
+              - secretsmanager:PutSecretValue
+            Resource: '*'
+          - Sid: CognitoUsers
+            Effect: Allow
+            Action:
+              - cognito-idp:ListUsers
+              - cognito-idp:AdminCreateUser
+              - cognito-idp:AdminDeleteUser
+            Resource: '*'
       CodeUri: cognito/
       Handler: main.lambda_handler
       Layers:
@@ -216,7 +231,28 @@ Resources:
     Properties:
       FunctionName: !Sub ${CustomerName}_Genesys
       Description: All Genesys related functions like get agents, skill, schedule, task etc..
-      Role: !Ref Role
+      # Role: !Ref Role
+      Policies:
+        - Statement:
+          - Sid: GetSecretKey
+            Effect: Allow
+            Action:
+              - secretsmanager:GetSecretValue
+              - secretsmanager:PutSecretValue
+            Resource: '*'
+        - Statement:
+          - Sid: DynamaDB
+            Effect: Allow
+            Action:
+              - dynamodb:BatchWriteItem
+              - dynamodb:PutItem
+              - dynamodb:DeleteItem
+              - dynamodb:GetItem
+              - dynamodb:Scan
+              - dynamodb:Query
+              - dynamodb:UpdateItem
+              - dynamodb:GetRecords
+            Resource: '*'
       CodeUri: genesys/
       Handler: g_main.lambda_handler
       Layers:
@@ -225,7 +261,10 @@ Resources:
       Environment:
         Variables:
           GENESYS_ENV: !Ref GCEnv
-          SECRET_TOKEN: !Sub ${CustomerName}-AccessToken     
+          SECRET_TOKEN: !Sub ${CustomerName}-AccessToken   
+          TBL_ASSIGNMENT: !Sub ${CustomerName}_gc_assignment
+          TBL_ASSIGNMENT_SKILL: !Sub ${CustomerName}_gc_assignment_skill
+          TBL_SCHEDULED: !Sub ${CustomerName}_gc_scheduled
       Events:
         GetUsersAPI:
           Type: Api 
@@ -263,3 +302,7 @@ Outputs:
     Description: "URL used for Authentication"
     Value: !Sub https://${UserPoolDomain}.auth.${AWS::Region}.amazoncognito.com
 
+  DynamoDB:
+    Description: "DynamoDB ARN"
+    Value: !Ref DynamoDBTableAssignment
+     

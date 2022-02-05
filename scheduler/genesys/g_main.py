@@ -18,6 +18,9 @@ genesys_environment = os.getenv('GENESYS_ENV', "mypurecloud.com.au")
 region = os.getenv('REGION', "ap-southeast-2") 
 secret_client = os.getenv('SECRET_CLIENT', "karuna_secret_key") 
 secret_token = os.getenv('SECRET_TOKEN', "g_access_key") 
+tbl_gc_assignment = os.getenv('TBL_ASSIGNMENT', "Genesys_assignment") 
+tbl_gc_assignment_skill = os.getenv('TBL_ASSIGNMENT_SKILL', "Genesys_assignment_skill") 
+tbl_gc_scheduled = os.getenv('TBL_SCHEDULED', "Genesys_scheduled") 
 
 token_url = f"https://login.{genesys_environment}/oauth/token"
 skills_url = f"https://api.{genesys_environment}/api/v2/routing/skills?pageSize=500"
@@ -32,7 +35,10 @@ env = {
     "skills_url" : skills_url,
     "agents_url" : agents_url,
     "routing_url" : routing_url,
-    "region" : region
+    "region" : region,
+    "tbl_gc_assignment": tbl_gc_assignment,
+    "tbl_gc_assignment_skill": tbl_gc_assignment_skill,
+    "tbl_gc_scheduled": tbl_gc_scheduled
 }
 
 def lambda_handler(event, context):
@@ -223,7 +229,7 @@ class Lambda_Genesys():
                 'dynamodb', 
                 region_name = self.env['region'],
             )
-            table = dynamodb.Table('Genesys_scheduled')
+            table = dynamodb.Table(self.env['tbl_gc_scheduled'])
             if param == None:
                 response = response = table.query(
                     KeyConditionExpression=Key('p_key').eq('scheduled') 
@@ -251,7 +257,7 @@ class Lambda_Genesys():
                 'dynamodb', 
                 region_name = self.env['region'],
             )
-            table = dynamodb.Table('Genesys_scheduled')
+            table = dynamodb.Table(self.env['tbl_gc_scheduled'])
             response = table.get_item(
                 Key={
                     'p_key': 'scheduled',
@@ -291,7 +297,7 @@ class Lambda_Genesys():
                 'dynamodb', 
                 region_name = self.env['region'],
             )
-            table = dynamodb.Table('Genesys_scheduled')
+            table = dynamodb.Table(self.env['tbl_gc_scheduled'])
             response = table.get_item(
                 Key={
                     'p_key': 'scheduled',
@@ -330,7 +336,7 @@ class Lambda_Genesys():
                 'dynamodb', 
                 region_name = self.env['region'],
             )
-            table = dynamodb.Table('Genesys_scheduled')
+            table = dynamodb.Table(self.env['tbl_gc_scheduled'])
             response = table.delete_item(
                 Key={
                     'p_key': 'scheduled',
@@ -355,7 +361,7 @@ class Lambda_Genesys():
                 'dynamodb', 
                 region_name = self.env['region'],
             )
-            table = dynamodb.Table('Genesys_assignment')
+            table = dynamodb.Table(self.env['tbl_gc_assignment'])  
             
             if param == None:
                 response = response = table.scan()
@@ -378,7 +384,7 @@ class Lambda_Genesys():
                 'dynamodb', 
                 region_name = self.env['region'],
             )
-            table = dynamodb.Table('Genesys_assignment')
+            table = dynamodb.Table(self.env['tbl_gc_assignment'])
             response = table.get_item(
                 Key={
                     'assignment_name': body_json['assignment_name'],
@@ -405,7 +411,7 @@ class Lambda_Genesys():
                 'dynamodb', 
                 region_name = self.env['region'],
             )
-            table = dynamodb.Table('Genesys_assignment')
+            table = dynamodb.Table(self.env['tbl_gc_assignment'])
             response = table.query(
                     KeyConditionExpression=Key('assignment_name').eq(body_json['assignment_name'])
             )
@@ -437,7 +443,7 @@ class Lambda_Genesys():
                 'dynamodb', 
                 region_name = self.env['region'],
             )
-            table = dynamodb.Table('Genesys_assignment')
+            table = dynamodb.Table(self.env['tbl_gc_assignment'])
             response = table.get_item(
                 Key={
                     'assignment_name': param,
@@ -475,7 +481,7 @@ class Lambda_Genesys():
                 'dynamodb', 
                 region_name = self.env['region'],
             )
-            table = dynamodb.Table('Genesys_assignment')
+            table = dynamodb.Table(self.env['tbl_gc_assignment'])
             response = table.delete_item(
                 Key={
                     'assignment_name': body_json['assignment_name'],
@@ -498,7 +504,7 @@ class Lambda_Genesys():
                 'dynamodb', 
                 region_name = self.env['region'],
             )
-            table = dynamodb.Table('Genesys_assignment')
+            table = dynamodb.Table(self.env['tbl_gc_assignment'])
             response = response = table.query(
                 KeyConditionExpression=Key('assignment_name').eq(body_json['assignment_name'])
             )
@@ -527,7 +533,7 @@ class Lambda_Genesys():
                 'dynamodb', 
                 region_name = self.env['region'],
             )
-            table = dynamodb.Table('Genesys_assignment_skill')
+            table = dynamodb.Table(self.env['tbl_gc_assignment_skill']) 
             response = response = table.query(
                 KeyConditionExpression=Key('assignment_name').eq(param)
             )
@@ -546,7 +552,7 @@ class Lambda_Genesys():
                 'dynamodb', 
                 region_name = self.env['region'],
             )
-            table = dynamodb.Table('Genesys_assignment_skill')
+            table = dynamodb.Table(self.env['tbl_gc_assignment_skill'])
             response = table.get_item(
                 Key={
                     'assignment_name': body_json['assignment_name'],
@@ -574,7 +580,7 @@ class Lambda_Genesys():
                 'dynamodb', 
                 region_name = self.env['region'],
             )
-            table = dynamodb.Table('Genesys_assignment_skill')
+            table = dynamodb.Table(self.env['tbl_gc_assignment_skill'])
             response = table.delete_item(
                 Key={
                     'assignment_name': body_json['assignment_name'],
@@ -948,7 +954,7 @@ class Lambda_Genesys():
                 'dynamodb', 
                 region_name = self.env['region'],
             )
-            table = dynamodb.Table('Genesys_scheduled')
+            table = dynamodb.Table(self.env['tbl_gc_scheduled'])
             epoch_current = int(time.time())
             response = table.scan(
                 FilterExpression=Attr('next_runtime').lt(epoch_current)
@@ -978,7 +984,7 @@ class Lambda_Genesys():
                 'dynamodb', 
                 region_name = self.env['region'],
             )
-            table = dynamodb.Table('Genesys_assignment')
+            table = dynamodb.Table(self.env['tbl_gc_assignment'])
             response = response = table.query(
                 KeyConditionExpression=Key('assignment_name').eq(assignment_name) 
             )    
@@ -1006,7 +1012,7 @@ class Lambda_Genesys():
                 'dynamodb', 
                 region_name = self.env['region'],
             )
-            table = dynamodb.Table('Genesys_assignment')
+            table = dynamodb.Table(self.env['tbl_gc_assignment'])
             response = table.query(
                     KeyConditionExpression=Key('assignment_name').eq(body_json['clone_name'])
             )            
@@ -1044,7 +1050,7 @@ class Lambda_Genesys():
                 'dynamodb', 
                 region_name = self.env['region'],
             )
-            table = dynamodb.Table('Genesys_assignment')
+            table = dynamodb.Table(self.env['tbl_gc_assignment'])
             response = table.query(
                     KeyConditionExpression=Key('assignment_name').eq(body_json["assignment_name"])
             )            
@@ -1077,7 +1083,7 @@ class Lambda_Genesys():
                 'dynamodb', 
                 region_name = self.env['region'],
             )
-            table = dynamodb.Table('Genesys_assignment')
+            table = dynamodb.Table(self.env['tbl_gc_assignment'])
             response = table.query(
                     KeyConditionExpression=Key('assignment_name').eq(body_json["assignment_name"])
             )            
@@ -1110,7 +1116,7 @@ class Lambda_Genesys():
                 'dynamodb', 
                 region_name = self.env['region'],
             )
-            table = dynamodb.Table('Genesys_assignment')
+            table = dynamodb.Table(self.env['tbl_gc_assignment'])
             response = table.query(
                     KeyConditionExpression=Key('assignment_name').eq(body_json["assignment_name"])
             )            
@@ -1187,7 +1193,7 @@ class Lambda_Genesys():
                 'dynamodb', 
                 region_name = self.env['region'],
             )            
-            table = dynamodb.Table('Genesys_scheduled')
+            table = dynamodb.Table(self.env['tbl_gc_scheduled'])
             response = table.update_item(
                 Key={
                     'p_key': 'scheduled',

@@ -1,6 +1,7 @@
 import boto3
 import json
 import logging
+import os
 
 from datetime import datetime
 from dateutil import tz
@@ -67,8 +68,8 @@ class Lambda_Cognito():
             self.client = boto3.client(
                 'cognito-idp', 
                 region_name=self.env['region'],
-                aws_access_key_id = self.secret_client['CLIENT_ID'],
-                aws_secret_access_key= self.secret_client['SECRET_KEY']
+                # aws_access_key_id = self.secret_client['CLIENT_ID'],
+                # aws_secret_access_key= self.secret_client['SECRET_KEY']
             )
 
         except Exception as e:
