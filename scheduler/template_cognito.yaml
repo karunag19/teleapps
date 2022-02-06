@@ -274,6 +274,10 @@ Resources:
             RestApiId: !Ref ServiceApi
             Auth:
               Authorizer: CognitoAuthorizer           
+        ScheduledFunction:
+          Type: Schedule
+          Properties:
+            Schedule: rate(1 minute)
 
   AppDepLayer:
       Type: AWS::Serverless::LayerVersion
