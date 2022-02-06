@@ -15,15 +15,18 @@ Parameters:
   AdminEmail:
     Type: String
     Description: Email address for administrator
-  Role:
-    Type: String
-    Description: AWS Role ARN
   Region:
     Type: String
     Description: Name of the Region
   GCEnv:
     Type: String
     Description: Name of Genesys Cloud Environment
+  # GCClientID:
+  #   Type: String
+  #   Description: Genesys Cloud client id
+  # GCSecret:
+  #   Type: String
+  #   Description: Genesys Cloud secret key
 
 Globals:
   Function:
@@ -109,7 +112,7 @@ Resources:
     Properties:
       Name:  !Sub ${CustomerName}-Secret
       Description: "Store application key & Genesys key details"
-      SecretString: '{"CLIENT_ID":"","SECRET_KEY":"", "USER_POOL_ID":"", "GENESYS_CLIENT_ID":"", "GENESYS_SECRET":""}'
+      SecretString: '{"GENESYS_CLIENT_ID":"", "GENESYS_SECRET":""}'
 
   SecretManagerKey:
     Type: AWS::SecretsManager::Secret

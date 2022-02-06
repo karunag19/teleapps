@@ -48,7 +48,14 @@ To deploy packages:
     sam deploy --template-file deploy.yaml --stack-name TeleApps-Schedule --capabilities CAPABILITY_IAM
     sam deploy --template-file deploy_temp.yaml --stack-name TeleApps-Temp --capabilities CAPABILITY_IAM
     Guided deployment:
-    sam deploy --template-file template_cognito.yaml -g
+        sam deploy --template-file template_cognito.yaml -g
+            Note: Once Parameters are stored in "samconfig.toml" you can run without -g
+            sam deploy --template-file template_cognito.yaml 
+
+
+Multiple AWS Account:
+    AWS_PROFILE=default sam package # with params
+    AWS_PROFILE=live sam deploy # with params
 
 Reference:
     https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
@@ -70,3 +77,14 @@ To Enable "Time Based One Time Password"
     Call "verify_software_token" method and pass the google authenticator code.
     It would return "SUCCESS"
     
+AWS CLI:
+    aws s3 ls
+    Create profile using:
+        .aws/config
+    List user by profile
+        aws iam list-users --profile default
+        Note: default is the profile name
+    List s3 by profile
+        aws s3 ls --profile <profile name>
+    Change Profile:
+        export AWS_PROFILE=<profile_name>

@@ -8,5 +8,5 @@ s3_prefix = "karuna-app"
 region = "ap-southeast-2"
 confirm_changeset = true
 capabilities = "CAPABILITY_IAM"
-parameter_overrides = "CustomerName=\"karuna\" ClientDomains=\"http://localhost:4000\" AdminEmail=\"karunag19@gmail.com\" Role=\"arn:aws:iam::070618480609:role/TeleApps-Schedule\" Region=\"ap-southeast-2\" GCEnv=\"mypurecloud.com.au\""
+parameter_overrides = "CustomerName=\"karuna\" ClientDomains=\"http://localhost:4000\" AdminEmail=\"karunag19@gmail.com\" Region=\"ap-southeast-2\" GCEnv=\"mypurecloud.com.au\""
 image_repositories = []
