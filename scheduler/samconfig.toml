@@ -2,11 +2,11 @@ version = 0.1
 [default]
 [default.deploy]
 [default.deploy.parameters]
-stack_name = "karuna-app"
-s3_bucket = "aws-sam-cli-managed-default-samclisourcebucket-kntn94e8r025"
-s3_prefix = "karuna-app"
+stack_name = "borg-app"
+s3_bucket = "aws-sam-cli-managed-default-samclisourcebucket-18sqsexf3fqwy"
+s3_prefix = "borg-app"
 region = "ap-southeast-2"
 confirm_changeset = true
 capabilities = "CAPABILITY_IAM"
-parameter_overrides = "CustomerName=\"karuna\" ClientDomains=\"http://localhost:4000\" AdminEmail=\"karunag19@gmail.com\" Region=\"ap-southeast-2\" GCEnv=\"mypurecloud.com.au\""
+parameter_overrides = "CustomerName=\"borg\" ClientDomains=\"http://localhost:4000\" AdminEmail=\"karunag19@gmail.com\" Region=\"ap-southeast-2\" GCEnv=\"mypurecloud.com.au\""
 image_repositories = []

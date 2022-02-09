@@ -86,5 +86,10 @@ AWS CLI:
         Note: default is the profile name
     List s3 by profile
         aws s3 ls --profile <profile name>
+        aws s3 ls --profile cust1
     Change Profile:
         export AWS_PROFILE=<profile_name>
+        export AWS_PROFILE=cust1
+
+AWS SAM Error:
+    aws cloudformation delete-stack --stack-name myteststack
