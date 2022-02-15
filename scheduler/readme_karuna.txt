@@ -90,6 +90,9 @@ AWS CLI:
     Change Profile:
         export AWS_PROFILE=<profile_name>
         export AWS_PROFILE=cust1
+    Copy:
+        aws s3 cp s3://gc-teleapps.net/ ./ --recursive
+        aws s3 cp ./ s3://gc-teleapps.net/ --recursive
 
 AWS SAM Error:
     aws cloudformation delete-stack --stack-name myteststack

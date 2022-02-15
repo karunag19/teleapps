@@ -1,0 +1,82 @@
+{
+    "conversations": [
+        {
+            "conversationId": "0d7b1a91-bf24-4147-98e2-a2216fb583bf",
+            "conversationStart": "2022-02-15T07:01:52.346Z",
+            "divisionIds": [
+                "689324f1-9cea-452c-b0e5-e6b17c3cfdd8"
+            ],
+            "originatingDirection": "inbound",
+            "participants": [
+                {
+                    "participantId": "3211c950-2a45-4977-925d-c2915eecd761",
+                    "participantName": "Karunakaran G",
+                    "purpose": "external",
+                    "sessions": [
+                        {
+                            "addressFrom": "karuna.g@teleapps.com.au",
+                            "addressOther": "dmtest@talab.mypurecloud.com.au",
+                            "addressSelf": "karuna.g@teleapps.com.au",
+                            "addressTo": "dmtest@talab.mypurecloud.com.au",
+                            "direction": "inbound",
+                            "mediaType": "email",
+                            "peerId": "5a61fb2d-9c06-47dc-933f-d453c4ddd4b8",
+                            "provider": "PureCloud Email",
+                            "sessionId": "831560ee-b8c9-460b-b7a5-7204ca2fb0ae",
+                            "metrics": [
+                                {
+                                    "emitDate": "2022-02-15T07:01:52.346Z",
+                                    "name": "nConnected",
+                                    "value": 1
+                                }
+                            ],
+                            "segments": [
+                                {
+                                    "conference": false,
+                                    "segmentStart": "2022-02-15T07:01:52.346Z",
+                                    "segmentType": "interact",
+                                    "subject": "Test mail from Karuna - Sub"
+                                }
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "participantId": "1713967c-fdde-4670-8d4d-d2539e6320ea",
+                    "participantName": "EM_DMEmail",
+                    "purpose": "acd",
+                    "sessions": [
+                        {
+                            "addressFrom": "karuna.g@teleapps.com.au",
+                            "addressOther": "karuna.g@teleapps.com.au",
+                            "addressSelf": "dmtest@talab.mypurecloud.com.au",
+                            "addressTo": "dmtest@talab.mypurecloud.com.au",
+                            "direction": "inbound",
+                            "mediaType": "email",
+                            "peerId": "831560ee-b8c9-460b-b7a5-7204ca2fb0ae",
+                            "provider": "PureCloud Email",
+                            "remote": "Karunakaran G",
+                            "sessionId": "5a61fb2d-9c06-47dc-933f-d453c4ddd4b8",
+                            "metrics": [
+                                {
+                                    "emitDate": "2022-02-15T07:01:52.355Z",
+                                    "name": "nOffered",
+                                    "value": 1
+                                }
+                            ],
+                            "segments": [
+                                {
+                                    "conference": false,
+                                    "queueId": "4dd1d42e-d321-4177-b188-fb9882fbc106",
+                                    "segmentStart": "2022-02-15T07:01:52.355Z",
+                                    "segmentType": "interact",
+                                    "subject": "Test mail from Karuna - Sub"
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

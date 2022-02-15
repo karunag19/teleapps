@@ -1,0 +1,410 @@
+{
+    "entities": [
+        {
+            "id": "e3531d9d-c5d5-42ef-80c4-fbfc2ef02277",
+            "name": "Death Star Sales",
+            "division": {
+                "id": "689324f1-9cea-452c-b0e5-e6b17c3cfdd8",
+                "name": "Home",
+                "selfUri": "/api/v2/authorization/divisions/689324f1-9cea-452c-b0e5-e6b17c3cfdd8"
+            },
+            "dateCreated": "2021-07-20T01:45:20.219Z",
+            "dateModified": "2022-02-09T02:53:34.279Z",
+            "modifiedBy": "d6a94a9c-f4eb-4c64-a510-09b2eada4701",
+            "createdBy": "d6a94a9c-f4eb-4c64-a510-09b2eada4701",
+            "memberCount": 0,
+            "userMemberCount": 0,
+            "joinedMemberCount": 0,
+            "mediaSettings": {
+                "call": {
+                    "alertingTimeoutSeconds": 8,
+                    "serviceLevel": {
+                        "percentage": 0.8,
+                        "durationMs": 20000
+                    }
+                },
+                "socialExpression": {
+                    "alertingTimeoutSeconds": 300,
+                    "serviceLevel": {
+                        "percentage": 0.8,
+                        "durationMs": 20000
+                    }
+                },
+                "chat": {
+                    "alertingTimeoutSeconds": 30,
+                    "serviceLevel": {
+                        "percentage": 0.8,
+                        "durationMs": 20000
+                    }
+                },
+                "callback": {
+                    "alertingTimeoutSeconds": 30,
+                    "serviceLevel": {
+                        "percentage": 0.8,
+                        "durationMs": 20000
+                    }
+                },
+                "message": {
+                    "alertingTimeoutSeconds": 30,
+                    "serviceLevel": {
+                        "percentage": 0.8,
+                        "durationMs": 20000
+                    }
+                },
+                "videoComm": {
+                    "alertingTimeoutSeconds": 8,
+                    "serviceLevel": {
+                        "percentage": 0.8,
+                        "durationMs": 20000
+                    }
+                },
+                "email": {
+                    "alertingTimeoutSeconds": 300,
+                    "serviceLevel": {
+                        "percentage": 0.8,
+                        "durationMs": 86400000
+                    }
+                }
+            },
+            "routingRules": [],
+            "acwSettings": {
+                "wrapupPrompt": "OPTIONAL"
+            },
+            "skillEvaluationMethod": "ALL",
+            "autoAnswerOnly": true,
+            "enableTranscription": false,
+            "enableManualAssignment": true,
+            "defaultScripts": {},
+            "selfUri": "/api/v2/routing/queues/e3531d9d-c5d5-42ef-80c4-fbfc2ef02277"
+        },
+        {
+            "id": "6438fe73-fa24-4671-90e2-be63be56d7a4",
+            "name": "Death Star Service",
+            "division": {
+                "id": "689324f1-9cea-452c-b0e5-e6b17c3cfdd8",
+                "name": "Home",
+                "selfUri": "/api/v2/authorization/divisions/689324f1-9cea-452c-b0e5-e6b17c3cfdd8"
+            },
+            "dateCreated": "2021-07-20T01:47:49.779Z",
+            "dateModified": "2022-02-08T21:27:04.453Z",
+            "modifiedBy": "d6a94a9c-f4eb-4c64-a510-09b2eada4701",
+            "createdBy": "d6a94a9c-f4eb-4c64-a510-09b2eada4701",
+            "memberCount": 3,
+            "userMemberCount": 3,
+            "joinedMemberCount": 3,
+            "mediaSettings": {
+                "call": {
+                    "alertingTimeoutSeconds": 8,
+                    "serviceLevel": {
+                        "percentage": 0.8,
+                        "durationMs": 20000
+                    }
+                },
+                "socialExpression": {
+                    "alertingTimeoutSeconds": 300,
+                    "serviceLevel": {
+                        "percentage": 0.8,
+                        "durationMs": 20000
+                    }
+                },
+                "chat": {
+                    "alertingTimeoutSeconds": 30,
+                    "serviceLevel": {
+                        "percentage": 0.8,
+                        "durationMs": 20000
+                    }
+                },
+                "callback": {
+                    "alertingTimeoutSeconds": 30,
+                    "serviceLevel": {
+                        "percentage": 0.8,
+                        "durationMs": 20000
+                    }
+                },
+                "message": {
+                    "alertingTimeoutSeconds": 30,
+                    "serviceLevel": {
+                        "percentage": 0.8,
+                        "durationMs": 20000
+                    }
+                },
+                "videoComm": {
+                    "alertingTimeoutSeconds": 8,
+                    "serviceLevel": {
+                        "percentage": 0.8,
+                        "durationMs": 20000
+                    }
+                },
+                "email": {
+                    "alertingTimeoutSeconds": 300,
+                    "serviceLevel": {
+                        "percentage": 0.8,
+                        "durationMs": 86400000
+                    }
+                }
+            },
+            "routingRules": [],
+            "acwSettings": {
+                "wrapupPrompt": "OPTIONAL"
+            },
+            "skillEvaluationMethod": "ALL",
+            "autoAnswerOnly": false,
+            "enableTranscription": false,
+            "enableManualAssignment": true,
+            "defaultScripts": {},
+            "selfUri": "/api/v2/routing/queues/6438fe73-fa24-4671-90e2-be63be56d7a4"
+        },
+        {
+            "id": "4a8cda40-863d-4ba6-9891-e204ae23667c",
+            "name": "Death Star Support",
+            "division": {
+                "id": "689324f1-9cea-452c-b0e5-e6b17c3cfdd8",
+                "name": "Home",
+                "selfUri": "/api/v2/authorization/divisions/689324f1-9cea-452c-b0e5-e6b17c3cfdd8"
+            },
+            "dateCreated": "2021-07-20T01:48:37.516Z",
+            "dateModified": "2022-02-08T21:27:06.497Z",
+            "modifiedBy": "d6a94a9c-f4eb-4c64-a510-09b2eada4701",
+            "createdBy": "d6a94a9c-f4eb-4c64-a510-09b2eada4701",
+            "memberCount": 2,
+            "userMemberCount": 2,
+            "joinedMemberCount": 2,
+            "mediaSettings": {
+                "call": {
+                    "alertingTimeoutSeconds": 8,
+                    "serviceLevel": {
+                        "percentage": 0.8,
+                        "durationMs": 20000
+                    }
+                },
+                "socialExpression": {
+                    "alertingTimeoutSeconds": 300,
+                    "serviceLevel": {
+                        "percentage": 0.8,
+                        "durationMs": 20000
+                    }
+                },
+                "chat": {
+                    "alertingTimeoutSeconds": 30,
+                    "serviceLevel": {
+                        "percentage": 0.8,
+                        "durationMs": 20000
+                    }
+                },
+                "callback": {
+                    "alertingTimeoutSeconds": 30,
+                    "serviceLevel": {
+                        "percentage": 0.8,
+                        "durationMs": 20000
+                    }
+                },
+                "message": {
+                    "alertingTimeoutSeconds": 30,
+                    "serviceLevel": {
+                        "percentage": 0.8,
+                        "durationMs": 20000
+                    }
+                },
+                "videoComm": {
+                    "alertingTimeoutSeconds": 8,
+                    "serviceLevel": {
+                        "percentage": 0.8,
+                        "durationMs": 20000
+                    }
+                },
+                "email": {
+                    "alertingTimeoutSeconds": 300,
+                    "serviceLevel": {
+                        "percentage": 0.8,
+                        "durationMs": 86400000
+                    }
+                }
+            },
+            "routingRules": [],
+            "acwSettings": {
+                "wrapupPrompt": "OPTIONAL"
+            },
+            "skillEvaluationMethod": "ALL",
+            "autoAnswerOnly": false,
+            "enableTranscription": false,
+            "enableManualAssignment": true,
+            "defaultScripts": {},
+            "selfUri": "/api/v2/routing/queues/4a8cda40-863d-4ba6-9891-e204ae23667c"
+        },
+        {
+            "id": "4dd1d42e-d321-4177-b188-fb9882fbc106",
+            "name": "EM_DMEmail",
+            "division": {
+                "id": "689324f1-9cea-452c-b0e5-e6b17c3cfdd8",
+                "name": "Home",
+                "selfUri": "/api/v2/authorization/divisions/689324f1-9cea-452c-b0e5-e6b17c3cfdd8"
+            },
+            "description": "Lab  Test Email Q",
+            "dateCreated": "2021-11-04T00:02:59.698Z",
+            "dateModified": "2022-02-09T04:30:58.373Z",
+            "modifiedBy": "d6a94a9c-f4eb-4c64-a510-09b2eada4701",
+            "createdBy": "d6a94a9c-f4eb-4c64-a510-09b2eada4701",
+            "memberCount": 3,
+            "userMemberCount": 3,
+            "joinedMemberCount": 3,
+            "mediaSettings": {
+                "call": {
+                    "alertingTimeoutSeconds": 8,
+                    "serviceLevel": {
+                        "percentage": 0.8,
+                        "durationMs": 20000
+                    }
+                },
+                "socialExpression": {
+                    "alertingTimeoutSeconds": 300,
+                    "serviceLevel": {
+                        "percentage": 0.8,
+                        "durationMs": 20000
+                    }
+                },
+                "chat": {
+                    "alertingTimeoutSeconds": 30,
+                    "serviceLevel": {
+                        "percentage": 0.8,
+                        "durationMs": 20000
+                    }
+                },
+                "callback": {
+                    "alertingTimeoutSeconds": 30,
+                    "serviceLevel": {
+                        "percentage": 0.8,
+                        "durationMs": 20000
+                    }
+                },
+                "message": {
+                    "alertingTimeoutSeconds": 30,
+                    "serviceLevel": {
+                        "percentage": 0.8,
+                        "durationMs": 20000
+                    }
+                },
+                "videoComm": {
+                    "alertingTimeoutSeconds": 8,
+                    "serviceLevel": {
+                        "percentage": 0.8,
+                        "durationMs": 20000
+                    }
+                },
+                "email": {
+                    "alertingTimeoutSeconds": 300,
+                    "serviceLevel": {
+                        "percentage": 0.8,
+                        "durationMs": 86400000
+                    }
+                }
+            },
+            "routingRules": [],
+            "acwSettings": {
+                "wrapupPrompt": "OPTIONAL"
+            },
+            "skillEvaluationMethod": "ALL",
+            "autoAnswerOnly": false,
+            "enableTranscription": false,
+            "enableManualAssignment": true,
+            "defaultScripts": {},
+            "outboundEmailAddress": {
+                "domain": {
+                    "id": "teleapps.com.au",
+                    "selfUri": "/api/v2/routing/email/domains/teleapps.com.au"
+                },
+                "route": {
+                    "id": "d86adbcb-5224-47c8-a0bf-72bbcbe48599",
+                    "pattern": "test",
+                    "autoBcc": [],
+                    "selfUri": "/api/v2/routing/email/domains/teleapps.com.au/routes/d86adbcb-5224-47c8-a0bf-72bbcbe48599"
+                }
+            },
+            "selfUri": "/api/v2/routing/queues/4dd1d42e-d321-4177-b188-fb9882fbc106"
+        },
+        {
+            "id": "4b843af6-e5dc-48b0-b943-a6f1d9b9aec3",
+            "name": "EM_TALab",
+            "division": {
+                "id": "689324f1-9cea-452c-b0e5-e6b17c3cfdd8",
+                "name": "Home",
+                "selfUri": "/api/v2/authorization/divisions/689324f1-9cea-452c-b0e5-e6b17c3cfdd8"
+            },
+            "description": "Lab  Test Email Q",
+            "dateCreated": "2021-11-03T02:24:46.431Z",
+            "dateModified": "2022-02-09T04:32:29.473Z",
+            "modifiedBy": "d6a94a9c-f4eb-4c64-a510-09b2eada4701",
+            "createdBy": "d6a94a9c-f4eb-4c64-a510-09b2eada4701",
+            "memberCount": 2,
+            "userMemberCount": 2,
+            "joinedMemberCount": 2,
+            "mediaSettings": {
+                "call": {
+                    "alertingTimeoutSeconds": 8,
+                    "serviceLevel": {
+                        "percentage": 0.8,
+                        "durationMs": 20000
+                    }
+                },
+                "socialExpression": {
+                    "alertingTimeoutSeconds": 300,
+                    "serviceLevel": {
+                        "percentage": 0.8,
+                        "durationMs": 20000
+                    }
+                },
+                "chat": {
+                    "alertingTimeoutSeconds": 30,
+                    "serviceLevel": {
+                        "percentage": 0.8,
+                        "durationMs": 20000
+                    }
+                },
+                "callback": {
+                    "alertingTimeoutSeconds": 30,
+                    "serviceLevel": {
+                        "percentage": 0.8,
+                        "durationMs": 20000
+                    }
+                },
+                "message": {
+                    "alertingTimeoutSeconds": 30,
+                    "serviceLevel": {
+                        "percentage": 0.8,
+                        "durationMs": 20000
+                    }
+                },
+                "videoComm": {
+                    "alertingTimeoutSeconds": 8,
+                    "serviceLevel": {
+                        "percentage": 0.8,
+                        "durationMs": 20000
+                    }
+                },
+                "email": {
+                    "alertingTimeoutSeconds": 300,
+                    "serviceLevel": {
+                        "percentage": 0.8,
+                        "durationMs": 86400000
+                    }
+                }
+            },
+            "routingRules": [],
+            "acwSettings": {
+                "wrapupPrompt": "OPTIONAL"
+            },
+            "skillEvaluationMethod": "ALL",
+            "autoAnswerOnly": false,
+            "enableTranscription": false,
+            "enableManualAssignment": true,
+            "defaultScripts": {},
+            "selfUri": "/api/v2/routing/queues/4b843af6-e5dc-48b0-b943-a6f1d9b9aec3"
+        }
+    ],
+    "pageSize": 25,
+    "pageNumber": 1,
+    "total": 5,
+    "firstUri": "/api/v2/routing/queues?pageSize=25&pageNumber=1",
+    "selfUri": "/api/v2/routing/queues?pageSize=25&pageNumber=1",
+    "lastUri": "/api/v2/routing/queues?pageSize=25&pageNumber=1",
+    "pageCount": 1
+}

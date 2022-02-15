@@ -1,0 +1,164 @@
+{
+    "results": [
+        {
+            "group": {
+                "queueId": "4dd1d42e-d321-4177-b188-fb9882fbc106",
+                "mediaType": "email"
+            },
+            "data": [
+                {
+                    "metric": "oWaiting",
+                    "stats": {
+                        "count": 3
+                    },
+                    "truncated": false,
+                    "observations": [
+                        {
+                            "observationDate": "2022-02-09T03:56:02.664Z",
+                            "conversationId": "3a02dd4a-43cf-45a7-a912-796d423b75dc",
+                            "sessionId": "0650b4bc-ff5c-412a-8756-65645ef2b5bd",
+                            "routingPriority": 0,
+                            "participantName": "David Murphy",
+                            "direction": "inbound",
+                            "addressFrom": "david.m@teleapps.com.au",
+                            "addressTo": "test@talab.mypurecloud.com.au",
+                            "requestedRoutings": [
+                                "Standard"
+                            ]
+                        },
+                        {
+                            "observationDate": "2022-02-09T04:25:27.030Z",
+                            "conversationId": "c069ca08-33a5-4ec5-9586-8e3714b5cf3e",
+                            "sessionId": "9fc4652d-5c6b-4540-87a5-eef42d19dec0",
+                            "routingPriority": 0,
+                            "participantName": "David Murphy",
+                            "direction": "inbound",
+                            "addressFrom": "david.m@teleapps.com.au",
+                            "addressTo": "dmtest@talab.mypurecloud.com.au",
+                            "requestedRoutings": [
+                                "Standard"
+                            ]
+                        },
+                        {
+                            "observationDate": "2022-02-15T07:01:52.355Z",
+                            "conversationId": "0d7b1a91-bf24-4147-98e2-a2216fb583bf",
+                            "sessionId": "5a61fb2d-9c06-47dc-933f-d453c4ddd4b8",
+                            "routingPriority": 0,
+                            "participantName": "Karunakaran G",
+                            "direction": "inbound",
+                            "addressFrom": "karuna.g@teleapps.com.au",
+                            "addressTo": "dmtest@talab.mypurecloud.com.au",
+                            "requestedRoutings": [
+                                "Standard"
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "metric": "oInteracting",
+                    "stats": {
+                        "count": 1
+                    },
+                    "truncated": false,
+                    "observations": [
+                        {
+                            "observationDate": "2022-02-15T06:57:15.962Z",
+                            "conversationId": "000cb32b-9f50-45c2-8365-3b9e4795bcaa",
+                            "sessionId": "a9b88a9f-e35f-4161-be31-cb00da7c5381",
+                            "routingPriority": 0,
+                            "participantName": "David Murphy",
+                            "userId": "cce4255d-cf68-43ca-9b3f-92cab5d174c7",
+                            "direction": "inbound",
+                            "addressFrom": "david.m@teleapps.com.au",
+                            "addressTo": "dmtest@talab.mypurecloud.com.au",
+                            "requestedRoutings": [
+                                "Standard"
+                            ],
+                            "usedRouting": "Standard"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "group": {
+                "queueId": "4dd1d42e-d321-4177-b188-fb9882fbc106",
+                "mediaType": "voice"
+            },
+            "data": [
+                {
+                    "metric": "oInteracting",
+                    "stats": {
+                        "count": 0
+                    }
+                },
+                {
+                    "metric": "oWaiting",
+                    "stats": {
+                        "count": 0
+                    }
+                }
+            ]
+        },
+        {
+            "group": {
+                "queueId": "4dd1d42e-d321-4177-b188-fb9882fbc106",
+                "mediaType": "chat"
+            },
+            "data": [
+                {
+                    "metric": "oInteracting",
+                    "stats": {
+                        "count": 0
+                    }
+                },
+                {
+                    "metric": "oWaiting",
+                    "stats": {
+                        "count": 0
+                    }
+                }
+            ]
+        },
+        {
+            "group": {
+                "queueId": "4dd1d42e-d321-4177-b188-fb9882fbc106",
+                "mediaType": "callback"
+            },
+            "data": [
+                {
+                    "metric": "oInteracting",
+                    "stats": {
+                        "count": 0
+                    }
+                },
+                {
+                    "metric": "oWaiting",
+                    "stats": {
+                        "count": 0
+                    }
+                }
+            ]
+        },
+        {
+            "group": {
+                "queueId": "4dd1d42e-d321-4177-b188-fb9882fbc106",
+                "mediaType": "message"
+            },
+            "data": [
+                {
+                    "metric": "oInteracting",
+                    "stats": {
+                        "count": 0
+                    }
+                },
+                {
+                    "metric": "oWaiting",
+                    "stats": {
+                        "count": 0
+                    }
+                }
+            ]
+        }
+    ]
+}
