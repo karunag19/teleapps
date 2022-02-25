@@ -193,11 +193,74 @@ class Lambda_Cognito():
                     "required": [ "email"]
                 }
                 validate(instance=body_json, schema=schema)
+            if schema_name == "mfa_step1":
+                schema = {
+                    "type" : "object",
+                    "properties" : {
+                        "access_token" : {"type" : "string"},
+                    },
+                    "required": ["access_token"]
+                }
+                validate(instance=body_json, schema=schema)
+            if schema_name == "mfa_step2":
+                schema = {
+                    "type" : "object",
+                    "properties" : {
+                        "access_token" : {"type" : "string"},
+                        "code" : {"type" : "string"},
+                    },
+                    "required": ["access_token", "code"]
+                }
+                validate(instance=body_json, schema=schema)
             print("END __validate_schema")
         except ValidationError as e:
             raise Exception (f"Invalid json input - message: {e.message}, Error at: {e.json_path}, Valid Schema: {e.schema}") 
 
-    # def post_reset_password(self):
+    def post_mfa_step1(self):
+        try:
+            if self.event.get('body', None) == None:
+                raise Exception(f"You have to pass the data as JSON in body")
+            body_json = json.loads(self.event.get('body'))
+            self.__validate_schema("mfa_step1", body_json) 
+            response = self.client.associate_software_token(
+                AccessToken = body_json['access_token'],
+            )
+            return response
+        except Exception as e:
+            raise e       
+
+    def post_mfa_step2(self):
+        try:
+            if self.event.get('body', None) == None:
+                raise Exception(f"You have to pass the data as JSON in body")
+            body_json = json.loads(self.event.get('body'))
+            self.__validate_schema("mfa_step2", body_json) 
+            response = self.client.verify_software_token(
+                AccessToken = body_json['access_token'],
+                UserCode = body_json['code']
+            )
+            return response
+        except Exception as e:
+            raise e 
+
+    def post_mfa_step3(self):
+        try:
+            if self.event.get('body', None) == None:
+                raise Exception(f"You have to pass the data as JSON in body")
+            body_json = json.loads(self.event.get('body'))
+            self.__validate_schema("mfa_step1", body_json) 
+            response = self.client.set_user_mfa_preference(
+                AccessToken = body_json['access_token'],
+                SoftwareTokenMfaSettings={
+                    'Enabled': True,
+                    'PreferredMfa': True
+                },
+            )
+            return response
+        except Exception as e:
+            raise e 
+
+        # def post_reset_password(self):
     #     try:
     #         if self.event.get('body', None) == None:
     #             raise Exception(f"You have to pass the data as JSON in body")
@@ -209,4 +272,4 @@ class Lambda_Cognito():
     #         )
     #         return response
     #     except Exception as e:
-    #         raise e       
+    #         raise e  

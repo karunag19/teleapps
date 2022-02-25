@@ -12,6 +12,9 @@ Parameters:
   ClientDomains:
     Type: CommaDelimitedList
     Description: Array of domains allowed to use this UserPool
+  AppDomainName:
+    Type: String
+    Description: Application domain url.
   AdminEmail:
     Type: String
     Description: Email address for administrator
@@ -70,6 +73,7 @@ Resources:
         - email
         - openid
         - profile
+        - aws.cognito.signin.user.admin
       ExplicitAuthFlows:
         - ALLOW_USER_PASSWORD_AUTH
         - ALLOW_REFRESH_TOKEN_AUTH
@@ -332,7 +336,7 @@ Resources:
     Type: AWS::S3::Bucket
     Properties:
       # Change bucket name to reflect your website
-      BucketName: !Sub ${CustomerName}.gc-teleapps.net
+      BucketName: !Ref AppDomainName
 
   S3BucketPolicy:
     Type: AWS::S3::BucketPolicy

@@ -1,0 +1,22 @@
+{
+    "id": "fe6c78a6-5b19-4b5b-9271-1ffc7cd5114e",
+    "to": [
+        {
+            "email": "dmtest@talab.mypurecloud.com.au",
+            "name": "dmtest@talab.mypurecloud.com.au "
+        }
+    ],
+    "cc": [],
+    "bcc": [],
+    "from": {
+        "email": "karuna.g@teleapps.com.au",
+        "name": "Karunakaran G"
+    },
+    "subject": "Test message - 3 Subject",
+    "attachments": [],
+    "textBody": "Test Message – 3 body\r\n\r\nRegards,\r\nKaruna\r\n\r\nSent from Mail<https://go.microsoft.com/fwlink/?LinkId=550986> for Windows\r\n\r\n",
+    "htmlBody": "\r\n<div class=\"WordSection1\">\r\n<p>Test Message – 3 body</p>\r\n<p> </p>\r\n<p>Regards,</p>\r\n<p>Karuna</p>\r\n<p> </p>\r\n<p>Sent from <a href=\"https://go.microsoft.com/fwlink/?LinkId&#61;550986\" rel=\"nofollow\">\r\nMail</a> for Windows</p>\r\n<p> </p>\r\n</div>\r\n\r\n",
+    "time": "2022-02-15T09:14:37.158Z",
+    "historyIncluded": false,
+    "selfUri": "/api/v2/conversations/emails/cdf08360-8a72-41c9-a77d-253f1c792e48/messages/fe6c78a6-5b19-4b5b-9271-1ffc7cd5114e"
+}
