@@ -23,6 +23,7 @@ tbl_gc_assignment_skill = os.getenv('TBL_ASSIGNMENT_SKILL', "Genesys_assignment_
 tbl_gc_scheduled = os.getenv('TBL_SCHEDULED', "Genesys_scheduled") 
 
 token_url = f"https://login.{genesys_environment}/oauth/token"
+queue_url = f"https://api.{genesys_environment}/api/v2/routing/queues?pageSize=500"
 skills_url = f"https://api.{genesys_environment}/api/v2/routing/skills?pageSize=500"
 agents_url = f"https://api.{genesys_environment}/api/v2/users?pageSize=500"
 # routing_url = f"https://api.{genesys_environment}/api/v2/users/AGENT_ID/routingskills" 
@@ -192,13 +193,13 @@ class Lambda_Genesys_Queue():
         except Exception as e:
             raise e
 
-    def get_agents(self):
+    def get_queues(self):
         try:
             requestHeaders = {
                 "Authorization": f"{ self.secret_token['token_type'] } { self.secret_token['access_token']}"
             }
             
-            response = requests.get(self.env["agents_url"], headers=requestHeaders)
+            response = requests.get(self.env["queue_url"], headers=requestHeaders)
             if response.status_code == 200:
                 print("Got roles")
             else:

@@ -214,6 +214,7 @@ Resources:
               - cognito-idp:ListUsers
               - cognito-idp:AdminCreateUser
               - cognito-idp:AdminDeleteUser
+              - cognito-idp:AdminGetUser
             Resource: '*'
       CodeUri: cognito/
       Handler: main.lambda_handler

@@ -20,7 +20,7 @@ env = {
 }
 
 def lambda_handler(event, context):
-    try:
+    try: 
 
         genesys = Lambda_Cognito(event, context, env)
         result = genesys.execute_method()
@@ -127,6 +127,24 @@ class Lambda_Cognito():
         except Exception as e:
             raise e             
 
+    def post_get_user(self):
+        try:
+            if self.event.get('body', None) == None:
+                raise Exception(f"You have to pass the data as JSON in body")
+            body_json = json.loads(self.event.get('body'))
+            self.__validate_schema("user_detail", body_json)  
+            print("After __validate_schema")  
+            response = self.client.admin_get_user(
+                UserPoolId = self.env['user_pool_id'],
+                Username = body_json['email'],
+            )
+            response['UserCreateDate'] = str(response['UserCreateDate'])
+            response['UserLastModifiedDate'] = str(response['UserLastModifiedDate'])
+            return response    
+
+        except Exception as e:
+            raise e  
+
     def post_users(self):
         try:
             if self.event.get('body', None) == None:
@@ -182,6 +200,15 @@ class Lambda_Cognito():
                         "temp_password" : {"type" : "string"},
                     },
                     "required": [ "email", "temp_password"]
+                }
+                validate(instance=body_json, schema=schema)
+            if schema_name == "user_detail":
+                schema = {
+                    "type" : "object",
+                    "properties" : {
+                        "email" : {"type" : "string"},
+                    },
+                    "required": [ "email"]
                 }
                 validate(instance=body_json, schema=schema)
             if schema_name == "user_delete":
@@ -260,7 +287,24 @@ class Lambda_Cognito():
         except Exception as e:
             raise e 
 
-        # def post_reset_password(self):
+    def post_disable_mfa(self):
+        try:
+            if self.event.get('body', None) == None:
+                raise Exception(f"You have to pass the data as JSON in body")
+            body_json = json.loads(self.event.get('body'))
+            self.__validate_schema("mfa_step1", body_json) 
+            response = self.client.set_user_mfa_preference(
+                AccessToken = body_json['access_token'],
+                SoftwareTokenMfaSettings={
+                    'Enabled': False,
+                    'PreferredMfa': False
+                },
+            )
+            return response
+        except Exception as e:
+            raise e 
+
+    # def post_reset_password(self):
     #     try:
     #         if self.event.get('body', None) == None:
     #             raise Exception(f"You have to pass the data as JSON in body")

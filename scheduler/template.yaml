@@ -11,7 +11,13 @@ Globals:
     Environment:
       Variables:
         REGION: "ap-southeast-2"  
-        SECRET_CLIENT: "karuna_secret_key"  
+        GENESYS_ENV: "mypurecloud.com.au" 
+        SECRET_CLIENT: demo-Secret
+        SECRET_TOKEN: demo-AccessToken
+        USER_POOL_ID: ap-southeast-2_fH8Dbx7A0     
+        TBL_ASSIGNMENT: demo_gc_assignment
+        TBL_ASSIGNMENT_SKILL: demo_gc_assignment_skill
+        TBL_SCHEDULED: demo_gc_scheduled
 
 Resources:
   UsersFunction:
@@ -25,9 +31,6 @@ Resources:
       Layers:
         - !Ref AppDepLayer       
       Runtime: python3.8
-      Environment:
-        Variables:
-          USER_POOL_ID: "ap-southeast-2_k2sKD0fgJ"
       Events:
         GetUsersAPI:
           Type: Api 
@@ -46,14 +49,6 @@ Resources:
       Layers:
         - !Ref AppDepLayer      
       Runtime: python3.8
-      Environment:
-        Variables:
-          GENESYS_ENV: "mypurecloud.com.au" 
-          SECRET_CLIENT: karuna-Secret
-          SECRET_TOKEN: karuna-AccessToken     
-          TBL_ASSIGNMENT: karuna_gc_assignment
-          TBL_ASSIGNMENT_SKILL: karuna_gc_assignment_skill
-          TBL_SCHEDULED: !Sub karuna_gc_scheduled
       Events:
         GetUsersAPI:
           Type: Api 
@@ -61,6 +56,24 @@ Resources:
             Path: /genesys/{proxy+}
             Method: 'ANY'            
 
+  GenesysQueueFunction:
+    Type: AWS::Serverless::Function 
+    Properties:
+      FunctionName: GenesysQueue
+      Description: All GenesysQueue related functions like contacts in queue etc..
+      Role: arn:aws:iam::070618480609:role/TeleApps-Schedule
+      CodeUri: genesys/
+      Handler: g_queue.lambda_handler
+      Layers:
+        - !Ref AppDepLayer      
+      Runtime: python3.8
+      Events:
+        GetUsersAPI:
+          Type: Api 
+          Properties:
+            Path: /queue/{proxy+}
+            Method: 'ANY'  
+  
   AppDepLayer:
       Type: AWS::Serverless::LayerVersion
       Properties:
