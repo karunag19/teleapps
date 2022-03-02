@@ -86,6 +86,7 @@ AWS CLI:
         aws iam list-users --profile default
         Note: default is the profile name
     List s3 by profile
+        aws s3 ls
         aws s3 ls --profile <profile name>
         aws s3 ls --profile cust1
     Change Profile:
