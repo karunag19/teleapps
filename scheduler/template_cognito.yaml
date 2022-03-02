@@ -179,6 +179,24 @@ Resources:
         ReadCapacityUnits: 10
         WriteCapacityUnits: 5
 
+  DynamoDBTableAPIToken: 
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub ${CustomerName}_api_key
+      AttributeDefinitions: 
+        - AttributeName: p_key
+          AttributeType: S
+        - AttributeName: token
+          AttributeType: S          
+      KeySchema: 
+        - AttributeName: p_key
+          KeyType: HASH
+        - AttributeName: token 
+          KeyType: RANGE
+      ProvisionedThroughput: 
+        ReadCapacityUnits: 10
+        WriteCapacityUnits: 5
+        
   ServiceApi:
     DependsOn: MyCognitoUserPool
     Type: AWS::Serverless::Api
@@ -286,6 +304,55 @@ Resources:
           Type: Schedule
           Properties:
             Schedule: rate(1 minute)
+
+  APIAuthorizerFunction:
+    Type: AWS::Serverless::Function 
+    Properties:
+      FunctionName: !Sub ${CustomerName}_APIAuthorizer
+      Description: Generate application KEY for API authentication.
+      CodeUri: auth/
+      Handler: api_main.lambda_handler
+      Layers:
+        - !Ref AppDepLayer      
+      Runtime: python3.8
+      Environment:
+        Variables:
+          TBL_API_KEY: !Sub ${CustomerName}__api_key
+      Events:
+        GetUsersAPI:
+          Type: Api 
+          Properties:
+            Path: /api/{proxy+}
+            Method: 'ANY' 
+
+  KeyAuthorizerFunction:
+    Type: AWS::Serverless::Function 
+    Properties:
+      FunctionName: !Sub ${CustomerName}_KeyAuthorizer
+      Description: APIAuthorizer, this function will validate the Authorization token(KEY) pass in the header.
+      CodeUri: auth/
+      Handler: auth_main.lambda_handler
+      Runtime: python3.8
+
+  GenesysQueueFunction:
+    Type: AWS::Serverless::Function 
+    Properties:
+      FunctionName: !Sub ${CustomerName}_GenesysQueue
+      Description: All Genesys Queue related functions like contacts in queue etc..
+      CodeUri: genesys/
+      Handler: g_queue.lambda_handler
+      Layers:
+        - !Ref AppDepLayer      
+      Runtime: python3.8
+      Events:
+        GetUsersAPI:
+          Type: Api 
+          Properties:
+            Path: /queue/{proxy+}
+            Method: 'ANY' 
+            RestApiId: !Ref ServiceApi
+            Auth:
+              Authorizer: CognitoAuthorizer  
 
   AppDepLayer:
       Type: AWS::Serverless::LayerVersion

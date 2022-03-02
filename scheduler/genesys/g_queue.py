@@ -33,6 +33,7 @@ env = {
     "secret_token_key" : secret_token,
     "genesys_environment" : genesys_environment,
     "token_url" : token_url,
+    "queue_url" : queue_url,
     "skills_url" : skills_url,
     "agents_url" : agents_url,
     "routing_url" : routing_url,
@@ -46,7 +47,7 @@ def lambda_handler(event, context):
 
     try:
 
-        genesys = Lambda_Genesys(event, context, env)
+        genesys = Lambda_Genesys_Queue(event, context, env)
         result = genesys.execute_method()
         return get_result(1, result)
 

@@ -18,6 +18,7 @@ Globals:
         TBL_ASSIGNMENT: demo_gc_assignment
         TBL_ASSIGNMENT_SKILL: demo_gc_assignment_skill
         TBL_SCHEDULED: demo_gc_scheduled
+        TBL_API_KEY: demo_api_key
 
 Resources:
   UsersFunction:
@@ -73,7 +74,33 @@ Resources:
           Properties:
             Path: /queue/{proxy+}
             Method: 'ANY'  
-  
+
+  APIAuthorizerFunction:
+    Type: AWS::Serverless::Function 
+    Properties:
+      FunctionName: APIAuthorizer
+      Description: Generate application KEY for API authentication.
+      CodeUri: auth/
+      Handler: api_main.lambda_handler
+      Layers:
+        - !Ref AppDepLayer      
+      Runtime: python3.8
+      Events:
+        GetUsersAPI:
+          Type: Api 
+          Properties:
+            Path: /api/{proxy+}
+            Method: 'ANY' 
+
+  KeyAuthorizerFunction:
+    Type: AWS::Serverless::Function 
+    Properties:
+      FunctionName: KeyAuthorizer
+      Description: APIAuthorizer, this function will validate the Authorization token(KEY) pass in the header.
+      CodeUri: auth/
+      Handler: auth_main.lambda_handler
+      Runtime: python3.8
+ 
   AppDepLayer:
       Type: AWS::Serverless::LayerVersion
       Properties:

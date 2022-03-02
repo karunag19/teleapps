@@ -95,6 +95,7 @@ class Lambda_Cognito():
                 return result
         except Exception as e:
             raise e        
+
     def post_software_token(self):
         try:
             if self.event.get('body', None) == None:
