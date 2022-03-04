@@ -333,6 +333,13 @@ Resources:
       CodeUri: auth/
       Handler: auth_main.lambda_handler
       Runtime: python3.8
+      Policies:
+        - Statement:
+          - Sid: DynamaDB
+            Effect: Allow
+            Action:
+              - dynamodb:GetItem
+            Resource: '*'
 
   GenesysQueueFunction:
     Type: AWS::Serverless::Function 
@@ -344,6 +351,27 @@ Resources:
       Layers:
         - !Ref AppDepLayer      
       Runtime: python3.8
+      Policies:
+        - Statement:
+          - Sid: GetSecretKey
+            Effect: Allow
+            Action:
+              - secretsmanager:GetSecretValue
+              # - secretsmanager:PutSecretValue
+            Resource: '*'
+        - Statement:
+          - Sid: DynamaDB
+            Effect: Allow
+            Action:
+              # - dynamodb:BatchWriteItem
+              - dynamodb:PutItem
+              - dynamodb:DeleteItem
+              - dynamodb:GetItem
+              - dynamodb:Scan
+              - dynamodb:Query
+              - dynamodb:UpdateItem
+              - dynamodb:GetRecords
+            Resource: '*'
       Events:
         GetUsersAPI:
           Type: Api 

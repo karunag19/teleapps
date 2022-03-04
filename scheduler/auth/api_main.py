@@ -2,15 +2,18 @@ import boto3
 import json
 import logging
 import os
+import random
 
 from jsonschema import validate, ValidationError
+from boto3.dynamodb.conditions import Key
 
 region = os.getenv('REGION', "ap-southeast-2") 
 tbl_api_key = os.getenv('TBL_API_KEY', "demo_api_key") 
 
 env = {
     "region" : region,
-    "tbl_api_key" : tbl_api_key
+    "tbl_api_key" : tbl_api_key,
+    "key_len": 128
 }
 
 def lambda_handler(event, context):
@@ -77,7 +80,7 @@ class Lambda_KEY():
         except Exception as e:
             raise e 
 
-    def get_keys(self, param=None):
+    def get_tokens(self, param=None): 
         try:
             table = self.dynamodb.Table(self.env['tbl_api_key'])
             response = response = table.query(
@@ -88,30 +91,33 @@ class Lambda_KEY():
         except Exception as e:
             raise e 
 
-    def post_key(self):
+    def post_token(self):
         try:
             table = self.dynamodb.Table(self.env['tbl_api_key'])
-            while:
-                token = os.urandom(16)
+            while True:
+                token = self.__generate_key()
+                print(f"TOKEN: {token}")
                 response = table.get_item(
                     Key={
                         'p_key': 'app_key',
-                        'key': token
+                        'token': token
                     }
                 )
                 if "Item" not in response:
                     break
+            body_json = {}
             body_json['p_key'] = "app_key"
-            body_json['key'] = token
+            body_json['token'] = token
+            print(f"BEFORE INS")
             response = table.put_item(
                 Item=body_json
             )
             response_json = response
-            return response_json   
+            return body_json   
         except Exception as e:
             raise e 
 
-    def delete_scheduled(self):
+    def delete_token(self):
         try:
             if self.event.get('body', None) == None:
                 raise Exception(f"You have to pass the data as JSON in body")
@@ -125,15 +131,15 @@ class Lambda_KEY():
             response = table.get_item(
                 Key={
                     'p_key': 'app_key',
-                    'key': token
+                    'token': body_json['token']
                 }
             )
             if "Item" not in response:
-                raise Exception(f"Invalid key - key: {body_json['key']}")
+                raise Exception(f"Invalid key - key: {body_json['token']}")
             response = table.delete_item(
                 Key={
                     'p_key': 'app_key',
-                    'scheduled_name': body_json['key']
+                    'token': body_json['token']
                 },
                 ReturnValues="ALL_OLD"
             )
@@ -148,10 +154,23 @@ class Lambda_KEY():
                 schema_obj = {
                     "type" : "object",
                     "properties" : {
-                        "key" : {"type" : "string"},
+                        "token" : {"type" : "string"},
                     },
-                    "required": [ "key"]
+                    "required": [ "token"]
                 }              
         except ValidationError as e:
             raise Exception (f"Invalid json input - message: {e.message}, Error at: {e.json_path}, Valid Schema: {e.schema}") 
+    
+    def __generate_key(self):
+        try:
+            chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890"
+            key_len = self.env['key_len']
+            key = ""
+            for x in range(0,key_len):
+                key_char = random.choice(chars)
+                key = key + key_char
+            print("Here's your key: ",key)
+            return key
+        except Exception as e:
+            raise Exception (f"Key generation failed - message: {e.message}") 
     
