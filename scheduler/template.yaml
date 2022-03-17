@@ -19,6 +19,8 @@ Globals:
         TBL_ASSIGNMENT_SKILL: demo_gc_assignment_skill
         TBL_SCHEDULED: demo_gc_scheduled
         TBL_API_KEY: demo_api_key
+        TBL_Q_Contacts: demo_q_contacts
+        TBL_Contact_Details: demo_q_contact_details
 
 Resources:
   UsersFunction:

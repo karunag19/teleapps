@@ -367,9 +367,9 @@ class Lambda_Genesys():
             table = dynamodb.Table(self.env['tbl_gc_assignment'])  
             
             if param == None:
-                response = response = table.scan()
+                response = table.scan()
             else:    
-                response = response = table.query(
+                response = table.query(
                     KeyConditionExpression=Key('assignment_name').eq(param)
                 )
             response_json = response

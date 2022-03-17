@@ -13,7 +13,9 @@ tbl_api_key = os.getenv('TBL_API_KEY', "demo_api_key")
 env = {
     "region" : region,
     "tbl_api_key" : tbl_api_key,
-    "key_len": 128
+    "key_len": 128,
+    "tbl_q_contacts": tbl_q_contacts,
+    "tbl_contact_details": tbl_contact_details
 }
 
 def lambda_handler(event, context):

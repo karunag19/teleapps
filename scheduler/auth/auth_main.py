@@ -19,22 +19,25 @@ def lambda_handler(event, context):
     try: 
         print(event)
         genesys = Lambda_Auth(event, context, env)
+        print("step1")
         token = event['authorizationToken']
         print(token)
+        print("before validate")
         result = genesys.validate(token)
         print(result)
         return get_result(env, result)
     except Exception as e:
         logging.error(e)
-        return get_result(0, str(e))
+        # return get_result(0, str(e))
 
 def get_result(env, result):
     if result:
         auth = 'Allow'
     else:
         auth = 'Deny'
-    resource = f"arn:aws:execute-api:us-east-1:{env['acc_number']}:{env['api_deploy_url']}/*/*"
+    resource = [f"arn:aws:execute-api:{env['region']}:{env['acc_number']}:{env['api_deploy_url']}/*/*"]
     principalId = "abc123"
+    print(resource)
     authResponse = { 
         "principalId": principalId, 
         "policyDocument": { 
@@ -42,12 +45,13 @@ def get_result(env, result):
             "Statement": [
                 {
                     "Action": "execute-api:Invoke", 
-                    "Resource": [resource], 
+                    "Resource": resource, 
                     "Effect": auth
                 }
             ] 
         }
     }
+    print(authResponse)
     return authResponse
 
 class Lambda_Auth():
@@ -67,7 +71,10 @@ class Lambda_Auth():
 
     def validate(self, token):
         try:
-            table = self.dynamodb.Table(self.env['tbl_api_key'])  
+            print("validate")
+            print(self.env['tbl_api_key'])
+            # table = self.dynamodb.Table(self.env['tbl_api_key'])  
+            table = self.dynamodb.Table("demo_api_key")
             response = table.get_item(
                 Key={
                     'p_key': 'app_key',
@@ -75,6 +82,7 @@ class Lambda_Auth():
                 }
             )
             result = True
+            print(response)
             if "Item" not in response:
                 result=False
             return result   

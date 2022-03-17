@@ -196,7 +196,43 @@ Resources:
       ProvisionedThroughput: 
         ReadCapacityUnits: 10
         WriteCapacityUnits: 5
-        
+
+  DynamoDBTableQueuedContacts: 
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub ${CustomerName}_q_contacts
+      AttributeDefinitions: 
+        - AttributeName: p_key
+          AttributeType: S
+        - AttributeName: queue_id
+          AttributeType: S          
+      KeySchema: 
+        - AttributeName: p_key
+          KeyType: HASH
+        - AttributeName: queue_id 
+          KeyType: RANGE
+      ProvisionedThroughput: 
+        ReadCapacityUnits: 10
+        WriteCapacityUnits: 5
+
+  DynamoDBTableQueuedContactDetails: 
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub ${CustomerName}_q_contact_details
+      AttributeDefinitions: 
+        - AttributeName: queue_id
+          AttributeType: S
+        - AttributeName: contact_id
+          AttributeType: S          
+      KeySchema: 
+        - AttributeName: queue_id
+          KeyType: HASH
+        - AttributeName: contact_id 
+          KeyType: RANGE
+      ProvisionedThroughput: 
+        ReadCapacityUnits: 10
+        WriteCapacityUnits: 5
+
   ServiceApi:
     DependsOn: MyCognitoUserPool
     Type: AWS::Serverless::Api
@@ -325,22 +361,6 @@ Resources:
             Path: /api/{proxy+}
             Method: 'ANY' 
 
-  KeyAuthorizerFunction:
-    Type: AWS::Serverless::Function 
-    Properties:
-      FunctionName: !Sub ${CustomerName}_KeyAuthorizer
-      Description: APIAuthorizer, this function will validate the Authorization token(KEY) pass in the header.
-      CodeUri: auth/
-      Handler: auth_main.lambda_handler
-      Runtime: python3.8
-      Policies:
-        - Statement:
-          - Sid: DynamaDB
-            Effect: Allow
-            Action:
-              - dynamodb:GetItem
-            Resource: '*'
-
   GenesysQueueFunction:
     Type: AWS::Serverless::Function 
     Properties:
@@ -351,6 +371,10 @@ Resources:
       Layers:
         - !Ref AppDepLayer      
       Runtime: python3.8
+      Environment:
+        Variables:
+          TBL_Q_Contacts: !Sub ${CustomerName}_q_contacts
+          TBL_Contact_Details: !Sub ${CustomerName}_q_contact_details   
       Policies:
         - Statement:
           - Sid: GetSecretKey
@@ -363,7 +387,7 @@ Resources:
           - Sid: DynamaDB
             Effect: Allow
             Action:
-              # - dynamodb:BatchWriteItem
+              - dynamodb:BatchWriteItem
               - dynamodb:PutItem
               - dynamodb:DeleteItem
               - dynamodb:GetItem
@@ -379,8 +403,39 @@ Resources:
             Path: /queue/{proxy+}
             Method: 'ANY' 
             RestApiId: !Ref ServiceApi
+            # Auth:
+            #   Authorizer: CognitoAuthorizer 
             Auth:
-              Authorizer: CognitoAuthorizer  
+              DefaultAuthorizer: CustomAuthorizer
+              Authorizers:   
+                CustomAuthorizer:
+                  FunctionPayloadType: TOKEN
+                  FunctionArn: !GetAtt "KeyAuthorizerFunction.Arn"
+                  Identity:
+                    Header: Authorization
+                    ReauthorizeEvery: 300
+              
+  KeyAuthorizerFunction:
+    Type: AWS::Serverless::Function 
+    Properties:
+      FunctionName: !Sub ${CustomerName}_KeyAuthorizer
+      Description: APIAuthorizer, this function will validate the Authorization token(KEY) pass in the header.
+      CodeUri: auth/
+      Handler: auth_main.lambda_handler
+      Runtime: python3.8
+      Policies:
+        - Statement:
+          - Sid: DynamaDB
+            Effect: Allow
+            Action:
+              - dynamodb:GetItem
+            Resource: '*'
+      Environment:
+        Variables:
+          TBL_API_KEY: !Sub ${CustomerName}_api_key
+          REGION: ap-southeast-2
+          ACC_NUMBER: 070618480609
+          API_DEPLOY_URL: stel4fk8w7
 
   AppDepLayer:
       Type: AWS::Serverless::LayerVersion
@@ -392,6 +447,8 @@ Resources:
             - python3.8
           LicenseInfo: 'MIT'
           RetentionPolicy: Retain
+
+
 
   CloudFrontOriginAccessIdentity:
     Type: 'AWS::CloudFront::CloudFrontOriginAccessIdentity'
