@@ -223,11 +223,13 @@ class Lambda_Genesys_Queue():
             body_json = json.loads(self.event.get('body'))
             self.__validate_schema("queues", body_json) 
             # q_array = ["4dd1d42e-d321-4177-b188-fb9882fbc106", "689324f1-9cea-452c-b0e5-e6b17c3cfdd8"]
-            q_array = body_json['queues']
+            # q_array = body_json['queues']
+            q_array = body_json.get('queues')
+            b_reload = body_json.get('reload', False)
             print("STEP0")
             q_list_old =self.__get_q_list()
             flag_genesys = False
-            if q_list_old == None:
+            if ((q_list_old == None) or (b_reload == True)):
                 print("NO RECORD FOUND")
                 flag_genesys = True
             else:
@@ -470,7 +472,7 @@ class Lambda_Genesys_Queue():
 
                 for queue_id in add_del_list["queues"]:
                     for conversation_id in add_del_list["del"][queue_id]:
-                        print(f"DEL ITEM: {conversation['contact_id']}")
+                        print(f"DEL ITEM: {conversation_id}")
                         batch.delete_item(
                             Key={
                                 'queue_id': queue_id,
