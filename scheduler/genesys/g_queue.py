@@ -435,6 +435,8 @@ class Lambda_Genesys_Queue():
                 queues.append(queue_id)
                 add_qlist[queue_id] = []
                 del_qlist[queue_id] = []
+                if queue_id not in new_json:
+                    continue
                 for conversation_id in new_json[queue_id]['conversation']:
                     if old_json == None:
                         add_qlist[queue_id].append(conversation_id)
