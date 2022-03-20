@@ -21,6 +21,8 @@ secret_client = os.getenv('SECRET_CLIENT', "demo-Secret")
 secret_token = os.getenv('SECRET_TOKEN', "demo-AccessToken") 
 tbl_q_contacts = os.getenv('TBL_Q_Contacts', "demo_q_contacts") 
 tbl_contact_details = os.getenv('TBL_Contact_Details', "demo_q_contact_details") 
+contacts_query_interval = os.getenv('CON_QUERY_INTERVAL', 60) 
+# queue_query_interval = os.getenv('QUEUE_QUERY_INTERVAL', 600) 
 
 token_url = f"https://login.{genesys_environment}/oauth/token"
 queue_url = f"https://api.{genesys_environment}/api/v2/routing/queues?pageSize=500"
@@ -45,6 +47,8 @@ env = {
     "region" : region,
     "tbl_q_contacts": tbl_q_contacts,
     "tbl_contact_details": tbl_contact_details,
+    "contacts_query_interval": contacts_query_interval, # default 60 sec.  -> query the queued contacts every 60 sec (1min.).
+    # "queue_query_interval": queue_query_interval, # default 600 sec.  -> query the queued list every 600 sec (10min).
 }
 
 def lambda_handler(event, context):
@@ -216,27 +220,42 @@ class Lambda_Genesys_Queue():
         except Exception as e:
             raise e 
 
+    def __get_q_array(self):
+        try:
+            queues_json = self.get_queues()
+            q_array = []
+            for queue in queues_json['entities']:
+                q_array.append(queue['id'])
+
+            print("q_array")
+            print(q_array)
+            return q_array
+        except Exception as e:
+            raise e 
+
     def post_get_qcontacts(self, param=None): 
         try:
             if self.event.get('body', None) == None:
                 raise Exception(f"You have to pass the data as JSON in body")
             body_json = json.loads(self.event.get('body'))
-            self.__validate_schema("queues", body_json) 
-            # q_array = ["4dd1d42e-d321-4177-b188-fb9882fbc106", "689324f1-9cea-452c-b0e5-e6b17c3cfdd8"]
-            # q_array = body_json['queues']
-            q_array = body_json.get('queues')
+            # self.__validate_schema("queues", body_json) 
+
             b_reload = body_json.get('reload', False)
-            print("STEP0")
             q_list_old =self.__get_q_list()
+
             flag_genesys = False
             if ((q_list_old == None) or (b_reload == True)):
-                print("NO RECORD FOUND")
+                print("NO RECORD FOUND/ reload:true")
+                q_array = self.__get_q_array()
                 flag_genesys = True
             else:
                 response_epochtime = int(q_list_old['timestamp'])
+                q_array = q_list_old['queues']
                 current_epochtime = int(time.time())
-                if (current_epochtime-int(response_epochtime)) > 60:
+                if (current_epochtime-int(response_epochtime)) > self.env['contacts_query_interval']:
                     flag_genesys = True
+                # if (current_epochtime-int(response_epochtime)) > self.env['queue_query_interval']:
+                #     q_array = self.__get_q_array()
             
             if flag_genesys:
                 response_json =self.__get_q_contacts_gc(q_array, q_list_old)
@@ -568,10 +587,11 @@ class Lambda_Genesys_Queue():
         try:
 
             # response = self.__update_details()
-            response = self.__get_q_contacts_db()
+            response = self.__get_q_array()
             # q_array = ["4dd1d42e-d321-4177-b188-fb9882fbc106", "689324f1-9cea-452c-b0e5-e6b17c3cfdd8"]
             # response_json =self.__get_q_contacts_gc(q_array)
             # response_json = self.__get_contacts_details("01c3bb31-3c55-4e3b-916b-452966aca94d")
+
             return response
         except Exception as e:
             raise e                
