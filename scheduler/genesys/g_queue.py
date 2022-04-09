@@ -331,6 +331,8 @@ class Lambda_Genesys_Queue():
             else:
                 print(f"Failure: { str(response.status_code) } - { response.reason }")
                 raise Exception(f"Failure to get Genesys access token: { str(response.status_code) } - { response.reason }")
+            print("response.json()")
+            print(response.json())
             result = self.__process_result(response.json(), q_list_old)
 
 
@@ -365,6 +367,8 @@ class Lambda_Genesys_Queue():
             filter_json = {}
             filter_json["detailMetrics"] = ["oWaiting", "oInteracting"]
             filter_json["metrics"] = ["oWaiting", "oInteracting"]
+            # filter_json["detailMetrics"] = ["oWaiting"]
+            # filter_json["metrics"] = ["oWaiting"]
             filter_json["filter"] = {}
             filter_json["filter"]["type"] = "and"
             filter_json["filter"]["clauses"] = []
@@ -406,14 +410,17 @@ class Lambda_Genesys_Queue():
                 queueId = queue["group"]["queueId"]
                 qlist_json['queues'].append(queueId)
                 qlist_json[queueId] = {}
-                qlist_json[queueId]['conversation'] = []
+                # qlist_json[queueId]['conversation'] = []
                 for contact_metric in queue["data"]: 
                     metric = contact_metric["metric"]
+                    qlist_json[queueId][metric] = {}
+                    qlist_json[queueId][metric]['conversation'] = []                    
                     if contact_metric["stats"]["count"] < 1:
-                        continue
+                        continue 
                     for contacts in contact_metric["observations"]:
                         contact_id = contacts["conversationId"]
-                        qlist_json[queueId]['conversation'].append(contact_id)
+                        # qlist_json[queueId]['conversation'].append(contact_id)
+                        qlist_json[queueId][metric]['conversation'].append(contact_id)
                         conversation = {}
                         conversation["queue_id"] = queueId  #queue_id
                         conversation["contact_id"] = contact_id #conversation_id
@@ -424,6 +431,7 @@ class Lambda_Genesys_Queue():
                         data_json.append(conversation)
 
             print(qlist_json)
+            print("qlist_json")
             self.__update_q_list(qlist_json)
             add_del_list = self.__compare_q_list(qlist_json, q_list_old)
             print("add_del_list")
@@ -435,41 +443,74 @@ class Lambda_Genesys_Queue():
 
     def __update_q_list(self, result_json):
         try:
+            print("start: __update_q_list")
             table = self.dynamodb.Table(self.env['tbl_q_contacts'])
             result_json['p_key'] = "app_client"
             result_json['queue_id'] = "now"
             response = table.put_item(
                 Item=result_json
             )
+            print("end: __update_q_list")
+            print(f"result: {result_json}")
             return result_json
         except Exception as e:
             raise e 
 
     def __compare_q_list(self, new_json, old_json):
         try:
+            print("start: __compare_q_list")
             add_qlist = {}
             del_qlist = {}
+            # update_qlist = {}
             queues = []
             for queue_id in new_json['queues']:
                 queues.append(queue_id)
                 add_qlist[queue_id] = []
                 del_qlist[queue_id] = []
+                # update_qlist[queue_id] = []
                 if queue_id not in new_json:
                     continue
-                for conversation_id in new_json[queue_id]['conversation']:
+                for conversation_id in new_json[queue_id]['oWaiting']['conversation']:
+                    print("conversation_id")
+                    print(conversation_id)
                     if old_json == None:
-                        add_qlist[queue_id].append(conversation_id)
+                        if conversation_id not in add_qlist[queue_id]:
+                            add_qlist[queue_id].append(conversation_id)
+                        print("add_qlist[queue_id]")
+                        print(add_qlist[queue_id])
                         continue
-                    if conversation_id not in old_json[queue_id]['conversation']:
-                        add_qlist[queue_id].append(conversation_id)
+                    print("old_json[queue_id]['oWaiting']['conversation']")
+                    print(old_json[queue_id]['oWaiting']['conversation'])
+                    if conversation_id not in old_json[queue_id]['oWaiting']['conversation']:
+                        if conversation_id not in add_qlist[queue_id]:
+                            add_qlist[queue_id].append(conversation_id)
+                for conversation_id in new_json[queue_id]['oInteracting']['conversation']:
+                    if old_json == None:
+                        if conversation_id not in add_qlist[queue_id]:
+                            add_qlist[queue_id].append(conversation_id)
+                        continue
+                    if conversation_id not in old_json[queue_id]['oInteracting']['conversation']:
+                        if conversation_id not in add_qlist[queue_id]:
+                            add_qlist[queue_id].append(conversation_id)
+
                 if old_json != None:
-                    for conversation_id in old_json[queue_id]['conversation']:
-                        if conversation_id not in new_json[queue_id]['conversation']:
-                            del_qlist[queue_id].append(conversation_id)
+                    # for conversation_id in old_json[queue_id]['conversation']:
+                    #     if conversation_id not in new_json[queue_id]['conversation']:
+                    #         del_qlist[queue_id].append(conversation_id)
+                    # Karuna - code change for include interaction emails.
+                    for conversation_id in old_json[queue_id]['oWaiting']['conversation']:
+                        if (conversation_id not in new_json[queue_id]['oWaiting']['conversation']):
+                            if conversation_id not in del_qlist[queue_id]:
+                                del_qlist[queue_id].append(conversation_id)
+                    for conversation_id in old_json[queue_id]['oInteracting']['conversation']:
+                        if (conversation_id not in new_json[queue_id]['oInteracting']['conversation']):
+                             if conversation_id not in del_qlist[queue_id]:
+                                del_qlist[queue_id].append(conversation_id)
             result = {}
             result["add"] = add_qlist
             result["del"] = del_qlist
             result["queues"] = queues
+            # result["update"] = update_qlist
             return result
         except Exception as e:
             raise e
@@ -478,6 +519,31 @@ class Lambda_Genesys_Queue():
         try:
             table = self.dynamodb.Table(self.env['tbl_contact_details'])
             map_assignment =[]
+            with table.batch_writer() as batch:
+                for queue_id in add_del_list["queues"]:
+                    for conversation_id in add_del_list["del"][queue_id]:
+                        print(f"DEL ITEM: {conversation_id}")
+                        batch.delete_item(
+                            Key={
+                                'queue_id': queue_id,
+                                'contact_id': conversation_id
+                            }
+                        )
+                    # for conversation_id in add_del_list["update"][queue_id]:
+                    #     print(f"Update ITEM: {conversation_id}")
+                    #     batch.update_item(
+                    #         Key={
+                    #             'queue_id': queue_id,
+                    #             'contact_id': conversation_id
+                    #         },
+                    #         UpdateExpression="SET #s_column=:s_value",
+                    #         ExpressionAttributeNames={
+                    #             "#s_column": "metric"
+                    #             },
+                    #         ExpressionAttributeValues={
+                    #             ':s_value': 'oInteracting',
+                    #         }
+                    #     )
             with table.batch_writer() as batch:
                 for conversation in result_json:
                     queue_id = conversation["queue_id"]
@@ -491,15 +557,7 @@ class Lambda_Genesys_Queue():
                         data['conversation_id'] = conversation["contact_id"]
                         map_assignment.append(data)
 
-                for queue_id in add_del_list["queues"]:
-                    for conversation_id in add_del_list["del"][queue_id]:
-                        print(f"DEL ITEM: {conversation_id}")
-                        batch.delete_item(
-                            Key={
-                                'queue_id': queue_id,
-                                'contact_id': conversation_id
-                            }
-                        )
+
 
             print(f"LENGTH: {len(map_assignment)}")
             with ThreadPoolExecutor(max_workers = 10) as executor:

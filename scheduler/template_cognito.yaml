@@ -506,6 +506,58 @@ Resources:
             Principal:
               AWS: !Sub "arn:aws:iam::cloudfront:user/CloudFront Origin Access Identity ${CloudFrontOriginAccessIdentity}"
 
+  # # -------------------
+
+  # CloudfrontDistribution_Email:
+  #   Type: "AWS::CloudFront::Distribution"
+  #   Properties:
+  #     DistributionConfig:
+  #       Comment: "Cloudfront distribution for serverless website"
+  #       DefaultRootObject: "index.html"
+  #       Enabled: true
+  #       HttpVersion: http2
+  #       # List of origins that Cloudfront will connect to
+  #       Origins:
+  #         - Id: s3-website
+  #           DomainName: !GetAtt S3Bucket_Email.DomainName
+  #           S3OriginConfig:
+  #             # Restricting Bucket access through an origin access identity
+  #             OriginAccessIdentity: 
+  #               Fn::Sub: 'origin-access-identity/cloudfront/${CloudFrontOriginAccessIdentity}'
+  #       # To connect the CDN to the origins you need to specify behaviours
+  #       DefaultCacheBehavior:
+  #         # Compress resources automatically ( gzip )
+  #         Compress: 'true'
+  #         AllowedMethods:
+  #           - GET
+  #           - HEAD
+  #           - OPTIONS
+  #         ForwardedValues:
+  #           QueryString: false
+  #         TargetOriginId: s3-website
+  #         ViewerProtocolPolicy : redirect-to-https
+
+  # S3Bucket_Email:
+  #   Type: AWS::S3::Bucket
+  #   Properties:
+  #     # Change bucket name to reflect your website
+  #     BucketName: !Ref AppDomainName
+
+  # S3BucketPolicy_Email:
+  #   Type: AWS::S3::BucketPolicy
+  #   Properties:
+  #     Bucket: !Ref S3Bucket_Email
+  #     PolicyDocument:
+  #     # Restricting access to cloudfront only.
+  #       Statement:
+  #         -
+  #           Effect: Allow
+  #           Action: 's3:GetObject'
+  #           Resource:
+  #             - !Sub "arn:aws:s3:::${S3Bucket_Email}/*"
+  #           Principal:
+  #             AWS: !Sub "arn:aws:iam::cloudfront:user/CloudFront Origin Access Identity ${CloudFrontOriginAccessIdentity}"
+
 Outputs:
   UserPoolId:
     Description: "User Pool ID"
