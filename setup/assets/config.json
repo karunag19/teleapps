@@ -1,0 +1,5 @@
+{
+  "client_id": "70ipojcad395u5kub2hfcrafqt",
+  "cloud_url": "https://ov0p56rgmd.execute-api.ap-southeast-2.amazonaws.com/Testing",
+  "auth_url": "https://borg-674882051971.auth.ap-southeast-2.amazoncognito.com/login?response_type=token&client_id={{client-id}}&redirect_uri={{redirect-uri}}"
+}
