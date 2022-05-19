@@ -1,3 +1,32 @@
+Deploy the app to borg environment:
+    In Cli:
+        Command: 
+            aws s3 ls
+                It will list folders in the default profile (demo profile)
+            export AWS_PROFILE=borg
+            aws s3 ls
+                Verify the aws cli is point to borg environment.
+
+    Change samconfig.toml
+        Rename "samconfig.toml" to "samconfig_demo.toml"   
+        Rename "samconfig_bord.toml" to "samconfig.toml"
+    Run deploy command:
+        sam deploy --template-file template_cognito.yaml -g
+    Angular App deploy:
+        update the config.json file in assets/config.json
+            {
+                "client_id": "70ipojcad395u5kub2hfcrafqt",
+                "cloud_url": "https://ov0p56rgmd.execute-api.ap-southeast-2.amazonaws.com/Testing",
+                "auth_url": "https://borg-674882051971.auth.ap-southeast-2.amazoncognito.com/login?response_type=token&client_id={{client-id}}&redirect_uri={{redirect-uri}}"
+            }
+        copy the latest angular app
+            aws s3 cp ./ s3://scheduler.borg.com.au/ --recursive
+        Login:
+            URL: https://d1n9tc1slbls7k.cloudfront.net/
+            User Name: karunag19@gmail.com
+            Password: T3l3appsgc#  
+
+
 AWS SAM -> AWS Serverless Application Model
 We can write lambda application localy
 We can test the lambda application using "sam local"

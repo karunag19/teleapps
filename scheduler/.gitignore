@@ -245,3 +245,5 @@ $RECYCLE.BIN/
 
 # AWS environmental file:
 */schedule/hello_world/.env
+
+setup/*
