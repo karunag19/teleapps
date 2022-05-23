@@ -73,8 +73,8 @@ class Lambda_Auth():
         try:
             print("validate")
             print(self.env['tbl_api_key'])
-            # table = self.dynamodb.Table(self.env['tbl_api_key'])  
-            table = self.dynamodb.Table("demo_api_key")
+            table = self.dynamodb.Table(self.env['tbl_api_key'])  
+            # table = self.dynamodb.Table("demo_api_key")
             response = table.get_item(
                 Key={
                     'p_key': 'app_key',

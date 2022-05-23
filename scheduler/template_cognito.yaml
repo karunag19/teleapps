@@ -373,6 +373,8 @@ Resources:
       Runtime: python3.8
       Environment:
         Variables:
+          GENESYS_ENV: !Ref GCEnv
+          SECRET_TOKEN: !Sub ${CustomerName}-AccessToken   
           TBL_Q_Contacts: !Sub ${CustomerName}_q_contacts
           TBL_Contact_Details: !Sub ${CustomerName}_q_contact_details   
       Policies:
