@@ -1,6 +1,7 @@
 {
-  "client_id": "70ipojcad395u5kub2hfcrafqt",
+  "client_id": "34e1cd89-8059-414c-8ce9-79725f8b0bec",
   "app_key": "hY59cbU9yNnjdq9yfJHk1mk7zRnnIYpgR41L8tGqQedH10mjGzDskvd6LJdoE9bmA8Tn7cjN6comcYss7mGHk3q5z7FebhAYLgFRdhtrutylcm5vrzJEyL5U3p4Niqq0",
   "cloud_url": "https://ov0p56rgmd.execute-api.ap-southeast-2.amazonaws.com/Testing",
-  "auth_url": "https://borg-674882051971.auth.ap-southeast-2.amazoncognito.com/login?response_type=token&client_id={{client-id}}&redirect_uri={{redirect-uri}}"
+  "auth_url": "https://borg-674882051971.auth.ap-southeast-2.amazoncognito.com/login?response_type=token&client_id={{client-id}}&redirect_uri={{redirect-uri}}",
+  "redirect_url": "https://d1n9tc1slbls7k.cloudfront.net/agent/index.html"
 }
