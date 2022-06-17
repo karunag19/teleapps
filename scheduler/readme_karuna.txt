@@ -57,7 +57,10 @@ To run the sam localy
 To start the local web interface
     sam local start-api
     sam local start-api --host 10.10.42.26 --port 3000
-    sam local start-api --host 10.10.42.26 --port 3000 --template-file template_cognito.yaml
+    Note: To run local dont use template_cognito.yaml, use only default template.  In template we had set the 
+        environment variable to demo environment.
+    E.g. (Dont use the below command in local)
+        sam local start-api --host 10.10.42.26 --port 3000 --template-file template_cognito.yaml
 
 To View Log:
     Go to :CloudWatch

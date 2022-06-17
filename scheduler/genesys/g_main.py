@@ -16,17 +16,24 @@ from concurrent.futures import ThreadPoolExecutor
 
 genesys_environment = os.getenv('GENESYS_ENV', "mypurecloud.com.au") 
 region = os.getenv('REGION', "ap-southeast-2") 
-secret_client = os.getenv('SECRET_CLIENT', "karuna_secret_key") 
-secret_token = os.getenv('SECRET_TOKEN', "g_access_key") 
-tbl_gc_assignment = os.getenv('TBL_ASSIGNMENT', "Genesys_assignment") 
-tbl_gc_assignment_skill = os.getenv('TBL_ASSIGNMENT_SKILL', "Genesys_assignment_skill") 
-tbl_gc_scheduled = os.getenv('TBL_SCHEDULED', "Genesys_scheduled") 
+secret_client = os.getenv('SECRET_CLIENT', "demo-Secret") 
+secret_token = os.getenv('SECRET_TOKEN', "demo-AccessToken") 
+tbl_gc_assignment = os.getenv('TBL_ASSIGNMENT', "demo_gc_assignment") 
+tbl_gc_assignment_skill = os.getenv('TBL_ASSIGNMENT_SKILL', "demo_gc_assignment_skill") 
+tbl_gc_scheduled = os.getenv('TBL_SCHEDULED', "demo_gc_scheduled") 
 
 token_url = f"https://login.{genesys_environment}/oauth/token"
 skills_url = f"https://api.{genesys_environment}/api/v2/routing/skills?pageSize=500"
 agents_url = f"https://api.{genesys_environment}/api/v2/users?pageSize=500"
 # routing_url = f"https://api.{genesys_environment}/api/v2/users/AGENT_ID/routingskills" 
 routing_url = f"https://api.{genesys_environment}/api/v2/users/AGENT_ID/routingskills/bulk" 
+
+# --q_start
+queue_url = f"https://api.{genesys_environment}/api/v2/routing/queues?pageSize=500"
+assign_q_url = f"https://api.{genesys_environment}/api/v2/users/AGENT_ID/queues"
+q_members_url = f"https://api.{genesys_environment}/api/v2/routing/queues/Q_ID/members" 
+# --q_end
+
 env = {
     "secret_client_key" : secret_client,
     "secret_token_key" : secret_token,
@@ -35,7 +42,12 @@ env = {
     "skills_url" : skills_url,
     "agents_url" : agents_url,
     "routing_url" : routing_url,
-    "region" : region,
+    # --q_start
+    "queue_url" : queue_url,
+    "assign_q_url": assign_q_url,
+    "q_members_url": q_members_url,
+    # --q_end
+    "region": region,
     "tbl_gc_assignment": tbl_gc_assignment,
     "tbl_gc_assignment_skill": tbl_gc_assignment_skill,
     "tbl_gc_scheduled": tbl_gc_scheduled
@@ -993,8 +1005,18 @@ class Lambda_Genesys():
             )    
             response_json = response['Items']
 
+            # for adding relevent queue to skill, we are getting queue list.
+            # ----------q_start---------
+            q_list = self.__get_queues()
+            print("q_list")
+            print(q_list)
+            # --------q_end-----------
+
             map_assignment =[]
             for item in response_json:
+                # ----------q_start---------
+                item["q_list"] = q_list
+                # ----------q_end---------
                 map_assignment.append(item)
             print(f"LENGTH: {len(map_assignment)}")
             with ThreadPoolExecutor(max_workers = 10) as executor:
@@ -1161,8 +1183,9 @@ class Lambda_Genesys():
                         "id": skill['skill_id'],
                         "proficiency": skill['proficiency']
                     }
-                # if int(skill['proficiency']) > 0:
-                skill_add_list.append(body)
+                # Note: if the proficiency is 0, we had not add the skill to genesys.
+                if int(skill['proficiency']) > 0:
+                    skill_add_list.append(body)
                 # else:
                 #     skill_remove_list.append(body)
             
@@ -1183,6 +1206,8 @@ class Lambda_Genesys():
             #     # if we are planning to use PATCH, then we have to delete the users with prociency 0.
             #     # DELETE /api/v2/users/{userId}/routingskills/{skillId} -> Remove routing skill from user
             #     pass
+            self.__delete_assign_queues(item_json)
+            self.__assign_queues(item_json)
 
         except Exception as e:
             raise e                
@@ -1262,6 +1287,149 @@ class Lambda_Genesys():
             return {"message":"remove scheduled success"}
         except Exception as e:
             raise e 
+
+    # ----------q_start---------
+    def __get_queues(self):
+        try:
+            requestHeaders = {
+                "Authorization": f"{ self.secret_token['token_type'] } { self.secret_token['access_token']}"
+            }
+            
+            response = requests.get(self.env["queue_url"], headers=requestHeaders)
+            if response.status_code == 200:
+                print("Got roles")
+            else:
+                print(f"Failure: { str(response.status_code) } - { response.reason }")
+                raise Exception(f"Failure to get Genesys users: { str(response.status_code) } - { response.reason }")
+
+            result = response.json() 
+            queue_list = {}
+            for queue in result["entities"]:
+                queue_list[queue["name"]] = queue["id"]
+
+            return queue_list
+
+        except Exception as e:
+            raise e 
+
+    def __delete_assign_queues(self, item_json):
+        try:
+            requestHeaders = {
+                "Authorization": f"{ self.secret_token['token_type'] } { self.secret_token['access_token']}"
+            }
+            
+            agent_id = item_json['agent_id']
+            ass_q_url_temp = self.env["assign_q_url"]
+            ass_q_url = ass_q_url_temp.replace("AGENT_ID", agent_id) 
+
+            response = requests.get(ass_q_url, headers=requestHeaders)
+            if response.status_code == 200:
+                print("Got assigned queue for the agent({agent_id})")
+            else:
+                print(f"Failure: { str(response.status_code) } - { response.reason }")
+                raise Exception(f"Failure to get Genesys users: { str(response.status_code) } - { response.reason }")
+
+            result = response.json() 
+
+            map_q =[]
+            for item in result["entities"]:
+                ass_q_detail = {}
+                ass_q_detail["q_id"] = item["id"]
+                ass_q_detail["agent_id"] = agent_id
+                map_q.append(ass_q_detail)
+            print(f"__delete_assign_queues.LENGTH: {len(map_q)}")
+            with ThreadPoolExecutor(max_workers = 10) as executor:
+                task = executor.map(self.__del_assign_q_exec, map_q)
+            print("ASSIGN Q DELETED")
+
+            # Assign members to Q
+
+        except Exception as e:
+            raise e 
+
+    def __del_assign_q_exec(self, ass_q_detail):
+        try:
+            print("__del_assign_q_exec")
+            requestHeaders = {
+                "Authorization": f"{ self.secret_token['token_type'] } { self.secret_token['access_token']}",
+                "Content-Type": "application/json"
+            }
+            del_true = "?delete=true"
+            ass_q_url_temp = self.env["q_members_url"] 
+            ass_q_url = ass_q_url_temp.replace("Q_ID", ass_q_detail['q_id']) + del_true
+
+            agent_del_list = []
+            agent_id_dic = {}
+            agent_id_dic['id'] = ass_q_detail['agent_id']
+            agent_del_list.append(agent_id_dic)
+            request_body = json.dumps(agent_del_list)
+
+            response = requests.post(ass_q_url, data=request_body, headers=requestHeaders)
+            if response.status_code == 200:
+                print("Assigned q got deleted")
+            else:
+                print(f"__del_assign_q_exec.Failure: { str(response.status_code) } - { response.reason }")
+                raise Exception(f"Failure to delete assign queue to the user: { str(response.status_code) } - { response.reason }")
+
+        except Exception as e:
+            raise e
+
+    def __assign_queues(self, item_json):
+        try:
+            print("__assign_queues")
+            q_list = item_json["q_list"]
+            print("q_list")
+            print(q_list)
+            map_add_q = []
+            for skill in item_json['skills']:
+                if int(skill['proficiency']) > 0:
+                    skill_name = skill['skill_name'] 
+                    if skill_name in q_list:
+                        print(f"Q with Skill name:{skill['skill_name']}")
+                        add_q_list = {}
+                        add_q_list['q_id'] = q_list[skill_name]
+                        add_q_list['agent_id'] = item_json['agent_id']
+                        map_add_q.append(add_q_list)
+                    else:
+                        print(f"Q without Skill name:{skill['skill_name']}")
+
+            print("map_add_q")
+            print(map_add_q)
+            print(f"__assign_queues.LENGTH: {len(map_add_q)}")
+            with ThreadPoolExecutor(max_workers = 10) as executor:
+                task = executor.map(self.__assign_queues_exec, map_add_q)
+            print("ASSIGN Q - SUCCESS")
+
+        except Exception as e:
+            raise e
+
+    def __assign_queues_exec(self, ass_q_detail):
+        try:
+            print("__assign_queues_exec")
+            requestHeaders = {
+                "Authorization": f"{ self.secret_token['token_type'] } { self.secret_token['access_token']}",
+                "Content-Type": "application/json"
+            }
+            ass_q_url_temp = self.env["q_members_url"] 
+            ass_q_url = ass_q_url_temp.replace("Q_ID", ass_q_detail["q_id"]) 
+
+            agent_del_list = []
+            agent_id_dic = {}
+            agent_id_dic['id'] = ass_q_detail['agent_id']
+            agent_del_list.append(agent_id_dic)
+            request_body = json.dumps(agent_del_list)
+
+            response = requests.post(ass_q_url, data=request_body, headers=requestHeaders)
+            if response.status_code == 200:
+                print("Assigned queue to agent")
+            else:
+                print(f"__assign_queues_exec.Failure: { str(response.status_code) } - { response.reason }")
+                raise Exception(f"Failure to add assign queue to the agent: { str(response.status_code) } - { response.reason }")
+
+        except Exception as e:
+            raise e
+
+    # ----------q_end---------
 
     def get_test(self):
         try:

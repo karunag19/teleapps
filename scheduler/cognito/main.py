@@ -8,10 +8,10 @@ from dateutil import tz
 from dateutil.tz import tzlocal
 from jsonschema import validate, ValidationError
 
-secret_dic = {}
+# secret_dic = {}
 region = os.getenv('REGION', "ap-southeast-2") 
-secret_client = os.getenv('SECRET_CLIENT', "karuna_secret_key") 
-user_pool_id = os.getenv('USER_POOL_ID', "ap-southeast-2_iWwopKLsU") 
+secret_client = os.getenv('SECRET_CLIENT', "demo-Secret")  
+user_pool_id = os.getenv('USER_POOL_ID', "ap-southeast-2_fH8Dbx7A0")  # demo-UserPool -> Pool Id
 
 env = {
     "secret_client_key" : secret_client,
@@ -51,6 +51,7 @@ def get_result(success, data):
 class Lambda_Cognito():
 
     def __init__(self, event, context, env):
+        print("Lambda_Cognito.__init__.start")
         self.event = event
         self.context = context
         self.env = env
@@ -60,9 +61,11 @@ class Lambda_Cognito():
                 'secretsmanager', 
                 region_name = self.env['region'],
             )
+            print(f"secret_client: {self.env['secret_client_key']}")
             secret_response = client.get_secret_value(
                     SecretId = self.env["secret_client_key"]
                 )
+            print("after secret_client response")
             self.secret_client = json.loads(secret_response['SecretString'])
 
             self.client = boto3.client(
@@ -71,8 +74,9 @@ class Lambda_Cognito():
                 # aws_access_key_id = self.secret_client['CLIENT_ID'],
                 # aws_secret_access_key= self.secret_client['SECRET_KEY']
             )
-
+            print("Lambda_Cognito.__init__.end")
         except Exception as e:
+            print(f"Exception: {e}")
             raise e 
 
     def execute_method(self):

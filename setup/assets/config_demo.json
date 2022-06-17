@@ -1,5 +1,5 @@
 {
-  "client_id": "",
-  "cloud_url": "",
-  "auth_url": ""
+  "client_id": "35j15j95hvkt3nuv1flhl7me6f",
+  "cloud_url": "https://stel4fk8w7.execute-api.ap-southeast-2.amazonaws.com/Testing",
+  "auth_url": "https://demo-070618480609.auth.ap-southeast-2.amazoncognito.com/login?response_type=token&client_id={{client-id}}&redirect_uri={{redirect-uri}}"
 }
