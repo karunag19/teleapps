@@ -15,6 +15,11 @@ from decimal import Decimal
 
 from concurrent.futures import ThreadPoolExecutor
 
+logger = logging.getLogger()
+# logging Level
+# DEBUG - 10, INFO - 20, ERROR - 40
+logger.setLevel(os.getenv('LOGLEVEL', 20))
+
 genesys_environment = os.getenv('GENESYS_ENV', "mypurecloud.com.au") 
 region = os.getenv('REGION', "ap-southeast-2") 
 secret_client = os.getenv('SECRET_CLIENT', "demo-Secret") 
@@ -54,13 +59,13 @@ env = {
 def lambda_handler(event, context):
 
     try:
-
+        logger.info("lambda_handler.START")
         genesys = Lambda_Genesys_Queue(event, context, env)
         result = genesys.execute_method()
+        logger.info("lambda_handler.END")
         return get_result(1, result)
-
     except Exception as e:
-        logging.error(e)
+        logger.error(f"lambda_handler.Exception: {e}")
         return get_result(0, str(e))
 
 def get_result(success, data):
@@ -93,7 +98,7 @@ class Lambda_Genesys_Queue():
         self.env = env
 
         try:
-            print("INIT START")
+            logger.info("__init__.START")
             client = boto3.client(
                 'secretsmanager', 
                 region_name = self.env['region'],
@@ -118,20 +123,21 @@ class Lambda_Genesys_Queue():
                 'dynamodb', 
                 region_name = self.env['region'],
             ) 
-            print("INIT COMPLETED")
+            logger.info("__init__.END")
         except Exception as e:
+            logger.error(f"__init__.Exception: {e}")
             raise e 
 
     def execute_method(self):
         try:
-            print(f"EVENT: {self.event}")
+            logger.info("execute_method.START")
             if isinstance(self.event, dict) and "path" in self.event:
                 param = self.event.get('path','').split('/')
-                print(param)
+                logger.info(f"execute_method.param: {param}")
                 if len(param) < 3:
                     raise Exception(f"Invalid method name")
                 handler_name = f"{self.event.get('httpMethod','').lower()}_{param[2]}"
-                print(handler_name)
+                logger.info(handler_name)
                 handler = getattr(self, handler_name, None)
                 if handler:
                     if len(param) > 3:
@@ -143,12 +149,14 @@ class Lambda_Genesys_Queue():
                 return result
             elif "detail-type" in self.event and self.event.get('detail-type') == "Scheduled Event":
                 self.get_process_scheduled()
-
+            logger.info("execute_method.END")
         except Exception as e:
+            logger.error(f"execute_method.Exception: {e}")
             raise e
 
     def __update_token(self):
         try:
+            logger.info("__update_token.START")
             # keyId = self.secret_client['CLIENT_ID']
             # sKeyId = self.secret_client['SECRET_KEY']
             access_token = self.__get_token()
@@ -167,13 +175,16 @@ class Lambda_Genesys_Queue():
                     SecretId=self.env['secret_token_key'],
                     SecretString=json.dumps(self.secret_token)
                 )
+            logger.info("__update_token.END")
             return secret_response    
 
         except Exception as e:
+            logger.error(f"__update_token.Exception: {e}")
             raise e
 
     def __get_token(self):
         try:
+            logger.info("__get_token.START")
             GENESYS_CLIENT_ID = self.secret_client['GENESYS_CLIENT_ID']
             GENESYS_SECRET = self.secret_client['GENESYS_SECRET']
             # Base64 encode the client ID and client secret
@@ -189,52 +200,58 @@ class Lambda_Genesys_Queue():
 
             # Get token
             response = requests.post(self.env["token_url"], data=request_body, headers=request_headers)
-            print(f"response: {response}")
+            logger.info(f"__get_token.response: {response}")
             # Check response
             if response.status_code == 200:
-                print("Got token")
+                logger.info("__get_token: Got 200 ok for get token")
             else:
-                print(f"Failure: { str(response.status_code) } - { response.reason }")
+                logger.info(f"__get_token.Failure: { str(response.status_code) } - { response.reason }")
                 raise Exception(f"Failure to get Genesys access token: { str(response.status_code) } - { response.reason }")
             # Get JSON response body
             response_json = response.json()
-
+            logger.info("__get_token.END")
             return  response_json      
         except Exception as e:
+            logger.error(f"__get_token.Exception: {e}")
             raise e
 
     def get_queues(self):
         try:
+            logger.info("get_queues.START")
             requestHeaders = {
                 "Authorization": f"{ self.secret_token['token_type'] } { self.secret_token['access_token']}"
             }
             
             response = requests.get(self.env["queue_url"], headers=requestHeaders)
             if response.status_code == 200:
-                print("Got roles")
+                logger.info("get_queues: Got 200 ok for get queues")
             else:
-                print(f"Failure: { str(response.status_code) } - { response.reason }")
+                logger.info(f"get_queues.Failure: { str(response.status_code) } - { response.reason }")
                 raise Exception(f"Failure to get Genesys users: { str(response.status_code) } - { response.reason }")
-
+            logger.info("get_queues.END")
             return response.json()   
         except Exception as e:
+            logger.error(f"get_queues.Exception: {e}")
             raise e 
 
     def __get_q_array(self):
         try:
+            logger.info("__get_q_array.START")
             queues_json = self.get_queues()
             q_array = []
             for queue in queues_json['entities']:
                 q_array.append(queue['id'])
 
-            print("q_array")
-            print(q_array)
+            logger.info(f"__get_q_array.q_array: {q_array}")
+            logger.info("__get_q_array.END")
             return q_array
         except Exception as e:
+            logger.error(f"__get_q_array.Exception: {e}")
             raise e 
 
     def post_get_qcontacts(self, param=None): 
         try:
+            logger.info("post_get_qcontacts.START")
             if self.event.get('body', None) == None:
                 raise Exception(f"You have to pass the data as JSON in body")
             body_json = json.loads(self.event.get('body'))
@@ -245,7 +262,7 @@ class Lambda_Genesys_Queue():
 
             flag_genesys = False
             if ((q_list_old == None) or (b_reload == True)):
-                print("NO RECORD FOUND/ reload:true")
+                logger.info("post_get_qcontacts: NO RECORD FOUND/ reload:true")
                 q_array = self.__get_q_array()
                 flag_genesys = True
             else:
@@ -261,9 +278,10 @@ class Lambda_Genesys_Queue():
                 response_json =self.__get_q_contacts_gc(q_array, q_list_old)
             else:
                 response_json = self.__get_q_contacts_db()
-
+            logger.info("post_get_qcontacts.END")
             return response_json
         except Exception as e:
+            logger.error(f"post_get_qcontacts.Exception: {e}")
             raise e 
 
     # def get_contact_details(self, param=None): 
@@ -284,6 +302,7 @@ class Lambda_Genesys_Queue():
 
     def __get_q_list(self):
         try:
+            logger.info("__get_q_list.START")
             table = self.dynamodb.Table(self.env['tbl_q_contacts'])
             response = table.get_item(
                 Key={
@@ -297,73 +316,79 @@ class Lambda_Genesys_Queue():
                 result = json.loads(response_json_temp) 
             else:
                 result = None
+            logger.info("__get_q_list.END")
             return result
         except Exception as e:
+            logger.error(f"__get_q_list.Exception: {e}")
             raise e                 
 
     def __get_q_contacts_db(self):
         try:
+            logger.info("__get_q_contacts_db.START")
             table = self.dynamodb.Table(self.env['tbl_contact_details'])
             response = table.scan()
-            print("AFTER SCAN")
-            # print(response)
+            logger.info("__get_q_contacts_db: AFTER SCAN")
+            # logger.info(response)
             response_json = response['Items']
             response_json_temp = json.dumps(response_json, default=self.__rep_decimal)
+            logger.info("__get_q_contacts_db.END")
             return json.loads(response_json_temp) 
         except Exception as e:
+            logger.error(f"__get_q_contacts_db.Exception: {e}")
             raise e
 
     def __get_q_contacts_gc(self, q_array, q_list_old):
         try:
+            logger.info("__get_q_contacts_gc.START")
             requestHeaders = {
                 "Authorization": f"{ self.secret_token['token_type'] } { self.secret_token['access_token']}",
                 "Content-Type": "application/json"
             }
             request_body = self.__get_filter(q_array)
-            print(self.env["q_query_url"])
-            print(requestHeaders)
-            print(request_body)
             response = requests.post(self.env["q_query_url"], json=request_body, headers=requestHeaders)
-            print(f"response: {response}")
+            logger.info(f"__get_q_contacts_gc.response: {response}")
 
             if response.status_code == 200:
-                print("Got token")
+                logger.info("__get_q_contacts_gc: Got 200 ok to get contacts")
             else:
-                print(f"Failure: { str(response.status_code) } - { response.reason }")
+                logger.info(f"__get_q_contacts_gc.Failure: { str(response.status_code) } - { response.reason }")
                 raise Exception(f"Failure to get Genesys access token: { str(response.status_code) } - { response.reason }")
-            print("response.json()")
-            print(response.json())
+            logger.info(f"__get_q_contacts_gc.response: {response.json()}")
             result = self.__process_result(response.json(), q_list_old)
-
-
+            logger.info("__get_q_contacts_gc.END")
             return result               
         except Exception as e:
+            logger.error(f"__get_q_contacts_gc.Exception: {e}")
             raise e     
 
     def __get_contacts_details(self, data):
         try:
+            logger.info("__get_contacts_details.START")
             requestHeaders = {
                 "Authorization": f"{ self.secret_token['token_type'] } { self.secret_token['access_token']}"
             }
             detail_url = f"{self.env['q_details']}{data['conversation_id']}/messages"
             response = requests.get(detail_url, headers=requestHeaders)
-            # print(f"response: {response}")
+            # logger.info(f"response: {response}")
 
             if response.status_code == 200:
-                print("Got token")
+                logger.info("__get_contacts_details: Got 200 OK for get contacts details.")
             else:
-                print(f"Failure: { str(response.status_code) } - { response.reason }")
+                logger.info(f"__get_contacts_details.Failure: { str(response.status_code) } - { response.reason }")
                 raise Exception(f"Failure to get Genesys access token: { str(response.status_code) } - { response.reason }")
             response_json = response.json()
             response_json["queue_id"] = data['queue_id']
             response_json["conversation_id"] = data['conversation_id']
             self.__update_details(response_json)
+            logger.info("__get_contacts_details.END")
             return response.json()               
         except Exception as e:
+            logger.error(f"__get_contacts_details.Exception: {e}")
             raise e
 
     def __get_filter(self, q_array):
         try:
+            logger.info("__get_filter.START")
             filter_json = {}
             filter_json["detailMetrics"] = ["oWaiting", "oInteracting"]
             filter_json["metrics"] = ["oWaiting", "oInteracting"]
@@ -393,14 +418,16 @@ class Lambda_Genesys_Queue():
 
             filter_json["filter"]["clauses"].append(predicates1_json)
             filter_json["filter"]["clauses"].append(predicates2_json)
-
+            logger.info("__get_filter.END")
             return filter_json
         except Exception as e:
+            logger.error(f"__get_filter.Exception: {e}")
             raise e    
    
 
     def __process_result(self, result_json, q_list_old):
         try:
+            logger.info("__process_result.START")
             epoch_time = int(time.time())
             data_json = []
             qlist_json = {}
@@ -430,35 +457,36 @@ class Lambda_Genesys_Queue():
                         conversation["metric"] = metric
                         data_json.append(conversation)
 
-            print(qlist_json)
-            print("qlist_json")
+            logger.info(f"__process_result.qlist_json: {qlist_json}")
             self.__update_q_list(qlist_json)
             add_del_list = self.__compare_q_list(qlist_json, q_list_old)
-            print("add_del_list")
-            print(add_del_list)
+            logger.info(f"__process_result.add_del_list: {add_del_list}")
             result = self.__update_q_table(data_json, add_del_list)
+            logger.info("__process_result.END")
             return result
         except Exception as e:
+            logger.error(f"__process_result.Exception: {e}")
             raise e   
 
     def __update_q_list(self, result_json):
         try:
-            print("start: __update_q_list")
+            logger.info("__update_q_list.START")
             table = self.dynamodb.Table(self.env['tbl_q_contacts'])
             result_json['p_key'] = "app_client"
             result_json['queue_id'] = "now"
             response = table.put_item(
                 Item=result_json
             )
-            print("end: __update_q_list")
-            print(f"result: {result_json}")
+            logger.info(f"__update_q_list.result: {result_json}")
+            logger.info("__update_q_list.END")
             return result_json
         except Exception as e:
+            logger.error(f"__update_q_list.Exception: {e}")
             raise e 
 
     def __compare_q_list(self, new_json, old_json):
         try:
-            print("start: __compare_q_list")
+            logger.info("__compare_q_list.START")
             add_qlist = {}
             del_qlist = {}
             # update_qlist = {}
@@ -471,16 +499,13 @@ class Lambda_Genesys_Queue():
                 if queue_id not in new_json:
                     continue
                 for conversation_id in new_json[queue_id]['oWaiting']['conversation']:
-                    print("conversation_id")
-                    print(conversation_id)
+                    logger.info(f"__compare_q_list.conversation_id: {conversation_id}")
                     if old_json == None:
                         if conversation_id not in add_qlist[queue_id]:
                             add_qlist[queue_id].append(conversation_id)
-                        print("add_qlist[queue_id]")
-                        print(add_qlist[queue_id])
+                        logger.info(f"__compare_q_list.add_qlist: {add_qlist[queue_id]}")
                         continue
-                    print("old_json[queue_id]['oWaiting']['conversation']")
-                    print(old_json[queue_id]['oWaiting']['conversation'])
+                    logger.info(f"__compare_q_list.old_json[queue_id]:{old_json[queue_id]['oWaiting']['conversation']}")
                     if conversation_id not in old_json[queue_id]['oWaiting']['conversation']:
                         if conversation_id not in add_qlist[queue_id]:
                             add_qlist[queue_id].append(conversation_id)
@@ -511,18 +536,21 @@ class Lambda_Genesys_Queue():
             result["del"] = del_qlist
             result["queues"] = queues
             # result["update"] = update_qlist
+            logger.info("__compare_q_list.END")
             return result
         except Exception as e:
+            logger.error(f"__compare_q_list.Exception: {e}")
             raise e
 
     def __update_q_table(self, result_json, add_del_list):
         try:
+            logger.info("__update_q_table.START")
             table = self.dynamodb.Table(self.env['tbl_contact_details'])
             map_assignment =[]
             with table.batch_writer() as batch:
                 for queue_id in add_del_list["queues"]:
                     for conversation_id in add_del_list["del"][queue_id]:
-                        print(f"DEL ITEM: {conversation_id}")
+                        logger.info(f"__update_q_table.DEL ITEM: {conversation_id}")
                         batch.delete_item(
                             Key={
                                 'queue_id': queue_id,
@@ -530,7 +558,7 @@ class Lambda_Genesys_Queue():
                             }
                         )
                     # for conversation_id in add_del_list["update"][queue_id]:
-                    #     print(f"Update ITEM: {conversation_id}")
+                    #     logger.info(f"Update ITEM: {conversation_id}")
                     #     batch.update_item(
                     #         Key={
                     #             'queue_id': queue_id,
@@ -548,7 +576,7 @@ class Lambda_Genesys_Queue():
                 for conversation in result_json:
                     queue_id = conversation["queue_id"]
                     if conversation["contact_id"] in add_del_list["add"][queue_id]:
-                        print(f"PUT ITEM: {conversation['contact_id']}")
+                        logger.info(f"__update_q_table.PUT ITEM: {conversation['contact_id']}")
                         batch.put_item(
                             Item=conversation
                         )
@@ -559,16 +587,18 @@ class Lambda_Genesys_Queue():
 
 
 
-            print(f"LENGTH: {len(map_assignment)}")
+            logger.info(f"__update_q_table.LENGTH: {len(map_assignment)}")
             with ThreadPoolExecutor(max_workers = 10) as executor:
                 # task = executor.map(self.__get_contacts_details, map_assignment)
                 for result in executor.map(self.__get_contacts_details, map_assignment):
-                    print("RESULT")
+                    logger.info("__update_q_table.RESULT")
 
             result = self.__get_q_contacts_db()
             # return result_json
+            logger.info("__update_q_table.END")
             return result
         except Exception as e:
+            logger.error(f"__update_q_table.Exception: {e}")
             raise e 
 
     # def __update_q_table_old(self, result_json):
@@ -587,11 +617,11 @@ class Lambda_Genesys_Queue():
     #             data['conversation_id'] = conversation['data']['conversationId']
     #             map_assignment.append(data)
     #             # map_assignment.append(conversation_id)
-    #         print(f"LENGTH: {len(map_assignment)}")
+    #         logger.info(f"LENGTH: {len(map_assignment)}")
     #         with ThreadPoolExecutor(max_workers = 10) as executor:
     #             # task = executor.map(self.__get_contacts_details, map_assignment)
     #             for result in executor.map(self.__get_contacts_details, map_assignment):
-    #                 print("RESULT")
+    #                 logger.info("RESULT")
 
     #         result = self.__get_q_contacts_db()
     #         # return result_json
@@ -601,7 +631,7 @@ class Lambda_Genesys_Queue():
 
     def __update_details(self, result_json):
         try:
-            print("__update_details")
+            logger.info("__update_details.START")
             table = self.dynamodb.Table(self.env['tbl_contact_details'])
              
             response = table.update_item(
@@ -617,13 +647,15 @@ class Lambda_Genesys_Queue():
                     ':s_value': result_json,
                 }
             ) 
-
+            logger.info("__update_details.END")
             return response
         except Exception as e:
+            logger.error(f"__update_details.Exception: {e}")
             raise e        
     
     def __validate_schema(self, schema, body_json):
         try:
+            logger.info("__validate_schema.START")
             if schema == "queues":
                 schema_obj = {
                     "type" : "object",
@@ -638,18 +670,20 @@ class Lambda_Genesys_Queue():
                     "required": [ "queues"]
                 }
             validate(instance=body_json, schema=schema_obj)
+            logger.info("__validate_schema.END")
         except ValidationError as e:
             raise Exception (f"Invalid json input - message: {e.message}, Error at: {e.json_path}, Valid Schema: {e.schema}") 
 
     def get_test(self):
         try:
-
+            logger.info("get_test.START")
             # response = self.__update_details()
             response = self.__get_q_array()
             # q_array = ["4dd1d42e-d321-4177-b188-fb9882fbc106", "689324f1-9cea-452c-b0e5-e6b17c3cfdd8"]
             # response_json =self.__get_q_contacts_gc(q_array)
             # response_json = self.__get_contacts_details("01c3bb31-3c55-4e3b-916b-452966aca94d")
-
+            logger.info("get_test.END")
             return response
         except Exception as e:
+            logger.error(f"get_test.Exception: {e}")
             raise e                

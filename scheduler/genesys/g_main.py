@@ -11,8 +11,13 @@ from dateutil import tz, parser
 from boto3.dynamodb.conditions import Key, Attr
 from jsonschema import validate, ValidationError, Draft7Validator, validators
 from decimal import Decimal
-
 from concurrent.futures import ThreadPoolExecutor
+
+logger = logging.getLogger()
+# logging Level
+# DEBUG - 10, INFO - 20, ERROR - 40
+logger.setLevel(os.getenv('LOGLEVEL', 20))
+
 
 genesys_environment = os.getenv('GENESYS_ENV', "mypurecloud.com.au") 
 region = os.getenv('REGION', "ap-southeast-2") 
@@ -21,18 +26,13 @@ secret_token = os.getenv('SECRET_TOKEN', "demo-AccessToken")
 tbl_gc_assignment = os.getenv('TBL_ASSIGNMENT', "demo_gc_assignment") 
 tbl_gc_assignment_skill = os.getenv('TBL_ASSIGNMENT_SKILL', "demo_gc_assignment_skill") 
 tbl_gc_scheduled = os.getenv('TBL_SCHEDULED', "demo_gc_scheduled") 
-
 token_url = f"https://login.{genesys_environment}/oauth/token"
 skills_url = f"https://api.{genesys_environment}/api/v2/routing/skills?pageSize=500"
 agents_url = f"https://api.{genesys_environment}/api/v2/users?pageSize=500"
-# routing_url = f"https://api.{genesys_environment}/api/v2/users/AGENT_ID/routingskills" 
 routing_url = f"https://api.{genesys_environment}/api/v2/users/AGENT_ID/routingskills/bulk" 
-
-# --q_start
 queue_url = f"https://api.{genesys_environment}/api/v2/routing/queues?pageSize=500"
 assign_q_url = f"https://api.{genesys_environment}/api/v2/users/AGENT_ID/queues"
 q_members_url = f"https://api.{genesys_environment}/api/v2/routing/queues/Q_ID/members" 
-# --q_end
 
 env = {
     "secret_client_key" : secret_client,
@@ -42,30 +42,31 @@ env = {
     "skills_url" : skills_url,
     "agents_url" : agents_url,
     "routing_url" : routing_url,
-    # --q_start
-    "queue_url" : queue_url,
-    "assign_q_url": assign_q_url,
-    "q_members_url": q_members_url,
-    # --q_end
     "region": region,
     "tbl_gc_assignment": tbl_gc_assignment,
     "tbl_gc_assignment_skill": tbl_gc_assignment_skill,
-    "tbl_gc_scheduled": tbl_gc_scheduled
+    "tbl_gc_scheduled": tbl_gc_scheduled,
+    "queue_url" : queue_url,
+    "assign_q_url": assign_q_url,
+    "q_members_url": q_members_url
 }
+
 
 def lambda_handler(event, context):
 
     try:
-
+        logger.info("lambda_handler.START")
         genesys = Lambda_Genesys(event, context, env)
         result = genesys.execute_method()
+        logger.info("lambda_handler.END")
         return get_result(1, result)
 
     except Exception as e:
-        logging.error(e)
+        logging.error(f"lambda_handler.Exception: {e}")
         return get_result(0, str(e))
 
 def get_result(success, data):
+    logger.info("get_result.START")
     result = {}
     result['success'] = success
     if success == 1:
@@ -81,6 +82,7 @@ def get_result(success, data):
             'Access-Control-Allow-Methods': 'OPTIONS,POST,GET,PUT,DELETE'
         }
     } 
+    logger.info("get_result.END")
     return final_result  
 
 
@@ -95,7 +97,7 @@ class Lambda_Genesys():
         self.env = env
 
         try:
-            print("INIT START")
+            logger.info("__init__.START")
             client = boto3.client(
                 'secretsmanager', 
                 region_name = self.env['region'],
@@ -115,20 +117,21 @@ class Lambda_Genesys():
                 token_ex_time = int(self.secret_token['expires_time'])
             if time.time() >  token_ex_time:
                 self.__update_token()    
-            print("INIT COMPLETED")
+            logger.info("__init__.END")
         except Exception as e:
+            logger.error("__init__.Exception: {e}")
             raise e 
 
     def execute_method(self):
         try:
-            print(f"EVENT: {self.event}")
+            logger.info(f"execute_method.START")
             if isinstance(self.event, dict) and "path" in self.event:
                 param = self.event.get('path','').split('/')
-                print(param)
+                logger.info(f"execute_method.param: {param}")
                 if len(param) < 3:
-                    raise Exception(f"Invalid method name")
+                    raise Exception(f"execute_method.Exception - Invalid method name")
                 handler_name = f"{self.event.get('httpMethod','').lower()}_{param[2]}"
-                print(handler_name)
+                logger.info(f"execute_method.handler_name: {handler_name}")
                 handler = getattr(self, handler_name, None)
                 if handler:
                     if len(param) > 3:
@@ -140,16 +143,17 @@ class Lambda_Genesys():
                 return result
             elif "detail-type" in self.event and self.event.get('detail-type') == "Scheduled Event":
                 self.get_process_scheduled()
-
+            logger.info(f"execute_method.END")
         except Exception as e:
+            logger.info(f"execute_method.Exception: {e}")
             raise e
 
     def __update_token(self):
         try:
+            logger.info(f"__update_token.START")
             # keyId = self.secret_client['CLIENT_ID']
             # sKeyId = self.secret_client['SECRET_KEY']
             access_token = self.__get_token()
-            
             expires_in = access_token['expires_in']
             expires_time = int(time.time()) + int(expires_in)
             access_token['expires_time'] = expires_time
@@ -164,13 +168,16 @@ class Lambda_Genesys():
                     SecretId=self.env['secret_token_key'],
                     SecretString=json.dumps(self.secret_token)
                 )
+            logger.info(f"__update_token.END")
             return secret_response    
 
         except Exception as e:
+            logger.error("__update_token.Exception: {e}")
             raise e
 
     def __get_token(self):
         try:
+            logger.info(f"__get_token.START")
             GENESYS_CLIENT_ID = self.secret_client['GENESYS_CLIENT_ID']
             GENESYS_SECRET = self.secret_client['GENESYS_SECRET']
             # GENESYS_CLIENT_ID = 'd684b8b1-2ac2-4476-b8a7-60a2eb498a45'
@@ -190,56 +197,62 @@ class Lambda_Genesys():
 
             # Get token
             response = requests.post(self.env["token_url"], data=request_body, headers=request_headers)
-            print(f"response: {response}")
+            logger.info(f"__get_token.response: {response}")
             # Check response
             if response.status_code == 200:
-                print("Got token")
+                logger.info("__get_token: Got token")
             else:
-                print(f"Failure: { str(response.status_code) } - { response.reason }")
-                raise Exception(f"Failure to get Genesys access token: { str(response.status_code) } - { response.reason }")
+                logger.info(f"Failure: { str(response.status_code) } - { response.reason }")
+                raise Exception(f"__get_token: Failure to get Genesys access token: { str(response.status_code) } - { response.reason }")
             # Get JSON response body
             response_json = response.json()
-
+            logger.info(f"__get_token.END")
             return  response_json      
         except Exception as e:
+            logger.error("__get_token.Exception: {e}")
             raise e
 
     def get_agents(self):
         try:
+            logger.info(f"get_agents.START")
             requestHeaders = {
                 "Authorization": f"{ self.secret_token['token_type'] } { self.secret_token['access_token']}"
             }
             
             response = requests.get(self.env["agents_url"], headers=requestHeaders)
             if response.status_code == 200:
-                print("Got roles")
+                logger.info("get_agents: Got 200 Ok response")
             else:
-                print(f"Failure: { str(response.status_code) } - { response.reason }")
-                raise Exception(f"Failure to get Genesys users: { str(response.status_code) } - { response.reason }")
-
+                logger.info(f"get_agents.Failure: { str(response.status_code) } - { response.reason }")
+                raise Exception(f"Failure to get agents: { str(response.status_code) } - { response.reason }")
+            logger.info(f"get_agents.END")
             return response.json()   
         except Exception as e:
+            logger.error("get_agents.Exception: {e}")
             raise e 
 
     def get_skills(self):
         try:
+            logger.info(f"get_skills.START")
             requestHeaders = {
                 "Authorization": f"{ self.secret_token['token_type'] } { self.secret_token['access_token']}"
             }
             
             response = requests.get(self.env["skills_url"], headers=requestHeaders)
             if response.status_code == 200:
-                print("Got roles")
+                logger.info("get_skills: Got 200 OK response")
             else:
-                print(f"Failure: { str(response.status_code) } - { response.reason }")
+                logger.info(f"get_skills.Failure: { str(response.status_code) } - { response.reason }")
                 raise Exception(f"Failure to get Genesys skills: { str(response.status_code) } - { response.reason }")
-
+            logger.info(f"get_skills.END")
             return response.json()
         except Exception as e:
+            logger.error("get_skills.Exception: {e}")
             raise e
 
     def get_scheduled(self, param=None):
         try:
+            logger.info(f"get_scheduled.START")
             dynamodb = boto3.resource(
                 'dynamodb', 
                 region_name = self.env['region'],
@@ -258,12 +271,15 @@ class Lambda_Genesys():
             for item in response_json:
                 item['last_runtime'] = str(item['last_runtime']) 
                 item['next_runtime'] = str(item['next_runtime'])
+            logger.info(f"get_scheduled.End")
             return response_json   
         except Exception as e:
+            logger.error("get_scheduled.Exception: {e}")
             raise e 
 
     def post_scheduled(self):
         try:
+            logger.info(f"post_scheduled.START")
             if self.event.get('body', None) == None:
                 raise Exception(f"You have to pass the data as JSON in body")
             body_json = json.loads(self.event.get('body'))
@@ -294,14 +310,17 @@ class Lambda_Genesys():
             # start_time_split = start_time.split(":")
             # self.__set_cron_job(body_json['scheduled_name'], start_time_split[0], start_time_split[1] )
             response_json = response
+            logger.info(f"post_scheduled.END")
             return response_json   
 
-            return body_json
+            # return body_json
         except Exception as e:
+            logger.error("post_scheduled.Exception: {e}")
             raise e 
 
     def put_scheduled(self, param=None):
         try:
+            logger.info(f"put_scheduled.START")
             if param == None:
                 raise Exception(f"Missing assignment name in the path(/genesys/scheduled/<scheduled name>")
             if self.event.get('body', None) == None:
@@ -335,14 +354,17 @@ class Lambda_Genesys():
             # start_time_split = start_time.split(":")
             # self.__set_cron_job(body_json['scheduled_name'], start_time_split[0], start_time_split[1] )
             response_json = response
+            logger.info(f"put_scheduled.END")
             return response_json   
 
-            return body_json
+            # return body_json
         except Exception as e:
+            logger.error("put_scheduled.Exception: {e}")
             raise e 
 
     def delete_scheduled(self):
         try:
+            logger.info(f"delete_scheduled.START")
             if self.event.get('body', None) == None:
                 raise Exception(f"You have to pass the data as JSON in body")
             body_json = json.loads(self.event.get('body'))
@@ -363,15 +385,17 @@ class Lambda_Genesys():
             if response_json != None:
                 response['Attributes']['last_runtime'] = str(response_json['last_runtime']) 
                 response['Attributes']['next_runtime'] = str(response_json['next_runtime'])            
+            logger.info(f"delete_scheduled.END")
             return response
         except Exception as e:
+            logger.error("delete_scheduled.Exception: {e}")
             raise e 
 
     def get_assignment(self, param=None):
         try:
             # if param == None:
             #     raise Exception(f"Missing assignment name in the path(/genesys/assignment/<schedule name>")
-
+            logger.info(f"get_assignment.START")
             dynamodb = boto3.resource(
                 'dynamodb', 
                 region_name = self.env['region'],
@@ -385,12 +409,15 @@ class Lambda_Genesys():
                     KeyConditionExpression=Key('assignment_name').eq(param)
                 )
             response_json = response
+            logger.info(f"get_assignment.END")
             return response_json   
         except Exception as e:
+            logger.error("get_assignment.Exception: {e}")
             raise e 
 
     def post_assignment(self):
         try:
+            logger.info(f"post_assignment.START")
             if self.event.get('body', None) == None:
                 raise Exception(f"You have to pass the data as JSON in body")
             body_json = json.loads(self.event.get('body'))
@@ -412,12 +439,15 @@ class Lambda_Genesys():
                 Item=body_json
             )
             response_json = response
+            logger.info(f"post_assignment.END")
             return response_json   
         except Exception as e:
+            logger.error("post_assignment.Exception: {e}")
             raise e 
 
     def post_assignment_bulk(self):
         try:
+            logger.info(f"post_assignment_bulk.START")
             if self.event.get('body', None) == None:
                 raise Exception(f"You have to pass the data as JSON in body")
             body_json = json.loads(self.event.get('body'))
@@ -430,7 +460,7 @@ class Lambda_Genesys():
             response = table.query(
                     KeyConditionExpression=Key('assignment_name').eq(body_json['assignment_name'])
             )
-            print(f"RESPONSE: {response}")            
+            logger.info(f"post_assignment_bulk.RESPONSE: {response}")            
             if response['Count'] > 0:
                 raise Exception(f"assignment with the same name: {body_json['assignment_name']} is already available")
 
@@ -440,14 +470,16 @@ class Lambda_Genesys():
                     batch.put_item(
                         Item=item
                     )
-            response_json = {"message":"bulk assignment success"} 
+            response_json = {"message":"bulk assignment success"}
+            logger.info(f"post_assignment_bulk.END") 
             return response_json   
         except Exception as e:
+            logger.error("post_assignment_bulk.Exception: {e}")
             raise e
 
     def put_assignment(self, param=None):
         try:
-
+            logger.info(f"put_assignment.START")
             if param == None:
                 raise Exception(f"Missing assignment name in the path(/genesys/assignment/<assignment name>")
             if self.event.get('body', None) == None:
@@ -481,13 +513,15 @@ class Lambda_Genesys():
                     ':s_prof': body_json["skills"],
                 }
             ) 
-
+            logger.info(f"put_assignment.END")
             return response  
         except Exception as e:
+            logger.error("put_assignment.Exception: {e}")
             raise e 
 
     def delete_assignment(self):
         try:
+            logger.info(f"delete_assignment.START")
             if self.event.get('body', None) == None:
                 raise Exception(f"You have to pass the data as JSON in body")
             body_json = json.loads(self.event.get('body'))
@@ -505,12 +539,15 @@ class Lambda_Genesys():
                 ReturnValues="ALL_OLD"
             )
             response_json = response
+            logger.info(f"delete_assignment.END")
             return response_json   
         except Exception as e:
+            logger.error("delete_assignment.Exception: {e}")
             raise e
     
     def delete_all_assignment(self):
         try:
+            logger.info(f"delete_all_assignment.START")
             if self.event.get('body', None) == None:
                 raise Exception(f"You have to pass the data as JSON in body")
             body_json = json.loads(self.event.get('body'))
@@ -536,11 +573,14 @@ class Lambda_Genesys():
                         }
                     )
             response_json = {"message":f"delete assignment({assignment_name}) success"} 
+            logger.info(f"delete_all_assignment.END")
             return response_json   
         except Exception as e:
+            logger.error("delete_all_assignment.Exception: {e}")
             raise e
     def get_skill(self, param=None):
         try:
+            logger.info(f"get_skill.START")
             if param == None:
                 raise Exception(f"Missing assignment name in the path(/genesys/skill/<schedule name>")
 
@@ -553,12 +593,15 @@ class Lambda_Genesys():
                 KeyConditionExpression=Key('assignment_name').eq(param)
             )
             response_json = response
+            logger.info(f"get_skill.END")
             return response_json   
         except Exception as e:
+            logger.error("get_skill.Exception: {e}")
             raise e 
 
     def post_skill(self):
         try:
+            logger.info(f"post_skill.START")
             if self.event.get('body', None) == None:
                 raise Exception(f"You have to pass the data as JSON in body")
             body_json = json.loads(self.event.get('body'))
@@ -580,17 +623,19 @@ class Lambda_Genesys():
                 Item=body_json
             )
             response_json = response
+            logger.info(f"post_skill.END")
             return response_json   
         except Exception as e:
+            logger.error("post_skill.Exception: {e}")
             raise e 
 
     def delete_skill(self):
         try:
+            logger.info(f"delete_skill.START")
             if self.event.get('body', None) == None:
                 raise Exception(f"You have to pass the data as JSON in body")
             body_json = json.loads(self.event.get('body'))
             self.__validate_schema("del_assignment_skill", body_json)
-            print(body_json)
             dynamodb = boto3.resource(
                 'dynamodb', 
                 region_name = self.env['region'],
@@ -604,12 +649,15 @@ class Lambda_Genesys():
                 ReturnValues="ALL_OLD"
             )
             response_json = response
+            logger.info(f"delete_skill.END")
             return response_json   
         except Exception as e:
+            logger.error("delete_skill.Exception: {e}")
             raise e
 
     def __validate_schema(self, schema, body_json, extn = False):
         try:
+            logger.info(f"__validate_schema.START")
             if schema == "scheduled":
                 schema_obj = {
                     "type" : "object",
@@ -792,10 +840,12 @@ class Lambda_Genesys():
                 self.__extn_validate(instance=body_json, schema=schema_obj)
             else:
                 validate(instance=body_json, schema=schema_obj)
+            logger.info(f"__validate_schema.END")
         except ValidationError as e:
             raise Exception (f"Invalid json input - message: {e.message}, Error at: {e.json_path}, Valid Schema: {e.schema}") 
     
     def __extn_validate(self, instance=None, schema=None ):
+        logger.info(f"__extn_validate.START")
         BaseVal = Draft7Validator
         # Build a new type checker
         def is_date(checker, inst):
@@ -836,8 +886,8 @@ class Lambda_Genesys():
     #         dt_start_date = datetime.strptime(f"{param['start_dt']}", '%Y-%m-%d')
     #         dt_today_date = datetime.strptime(f"{date.today()}", '%Y-%m-%d')
 
-    #         print(f"dt_start_date: {dt_start_date}")
-    #         print(f"dt_today_date: {dt_today_date}")
+    #         logger.info(f"dt_start_date: {dt_start_date}")
+    #         logger.info(f"dt_today_date: {dt_today_date}")
     #         if dt_start_date > dt_today_date:
     #             delta_day = 0
     #             dt_schedule = datetime.strptime(f"{param['start_dt']}-{param['start_time']}", '%Y-%m-%d-%H:%M')
@@ -851,16 +901,16 @@ class Lambda_Genesys():
     #             if dt_schedule > datetime.now():
     #                 delta_day = 0
 
-    #         print(f"dt_now: {datetime.now()}")
-    #         print(f"dt_schedule: {dt_schedule}")
-    #         print(f"delta_day: {delta_day}")
+    #         logger.info(f"dt_now: {datetime.now()}")
+    #         logger.info(f"dt_schedule: {dt_schedule}")
+    #         logger.info(f"delta_day: {delta_day}")
     #         if param['repeat_type'] == "D":
     #             dt_schedule = dt_schedule + relativedelta(days=delta_day)
-    #             print(f"NEXT RUN TIME: {dt_schedule}")
+    #             logger.info(f"NEXT RUN TIME: {dt_schedule}")
     #             return dt_schedule
     #         elif param['repeat_type'] == "W":
     #             #  week 0 to 6 -> 0-Monday, 6 - Sunday
-    #             print(f"dt_schedule.timetuple: {dt_schedule.timetuple()}")
+    #             logger.info(f"dt_schedule.timetuple: {dt_schedule.timetuple()}")
     #             time_tuple = dt_schedule.timetuple()
     #             dt_today_day = time_tuple[6]
     #             dt_next_day = dt_today_day + delta_day
@@ -869,7 +919,7 @@ class Lambda_Genesys():
     #             for i in range(0,7):
     #                 if param['repeat_on'][dt_next_day] == "1":
     #                     dt_schedule = dt_schedule + relativedelta(days=+ delta_day)
-    #                     print(f"NEXT RUN TIME: {dt_schedule}")
+    #                     logger.info(f"NEXT RUN TIME: {dt_schedule}")
     #                     return dt_schedule
     #                 else:
     #                     dt_next_day = dt_next_day + 1
@@ -879,20 +929,22 @@ class Lambda_Genesys():
     #         elif param['repeat_type'] == "M":
     #             dt_schedule_temp = datetime.strptime(f"{dt_schedule.year}-{dt_schedule.month}-{dt_start_datetime.day}-{param['start_time']}", '%Y-%m-%d-%H:%M')
     #             dt_schedule = dt_schedule_temp + relativedelta(months=+delta_day)
-    #             print(f"NEXT RUN TIME: {dt_schedule}")
+    #             logger.info(f"NEXT RUN TIME: {dt_schedule}")
     #             return dt_schedule
     #         elif param['repeat_type'] == "Y":
     #             dt_schedule_temp = datetime.strptime(f"{dt_schedule.year}-{dt_start_datetime.month}-{dt_start_datetime.day}-{param['start_time']}", '%Y-%m-%d-%H:%M')        
     #             dt_schedule = dt_schedule + relativedelta(years=+delta_day)
-    #             print(f"NEXT RUN TIME: {dt_schedule}")            
+    #             logger.info(f"NEXT RUN TIME: {dt_schedule}")            
     #             return dt_schedule
     #         else:
     #             return dt_start_datetime
     #     except Exception as e:
+    #         logger.error("__init__.Exception: {e}")
     #         raise e 
 
     def __calc_nextruntime_UTC(self, param):
         try:
+            logger.info(f"__calc_nextruntime_UTC.START")
             utc_time = parser.parse("2022-01-15T11:30:00.000Z")
             dt_year = utc_time.year
             dt_month = utc_time.month
@@ -908,8 +960,8 @@ class Lambda_Genesys():
             dt_start_date = datetime.strptime(f"{p_start_dt}", '%Y-%m-%d')
             dt_today_date = datetime.strptime(f"{date.today()}", '%Y-%m-%d')
 
-            print(f"dt_start_date: {dt_start_date}")
-            print(f"dt_today_date: {dt_today_date}")
+            logger.info(f"__calc_nextruntime_UTC.dt_start_date: {dt_start_date}")
+            logger.info(f"__calc_nextruntime_UTC.dt_today_date: {dt_today_date}")
             if dt_start_date > dt_today_date:
                 delta_day = 0
                 dt_schedule = datetime.strptime(f"{p_start_dt}-{p_start_time}", '%Y-%m-%d-%H:%M')
@@ -923,16 +975,16 @@ class Lambda_Genesys():
                 if dt_schedule > datetime.now():
                     delta_day = 0
 
-            print(f"dt_now: {datetime.now()}")
-            print(f"dt_schedule: {dt_schedule}")
-            print(f"delta_day: {delta_day}")
+            logger.info(f"__calc_nextruntime_UTC.dt_now: {datetime.now()}")
+            logger.info(f"__calc_nextruntime_UTC.dt_schedule: {dt_schedule}")
+            logger.info(f"__calc_nextruntime_UTC.delta_day: {delta_day}")
             if param['repeat_type'] == "D":
                 dt_schedule = dt_schedule + relativedelta(days=delta_day)
-                print(f"NEXT RUN TIME: {dt_schedule}")
+                logger.info(f"__calc_nextruntime_UTC: NEXT RUN TIME: {dt_schedule}")
                 return dt_schedule
             elif param['repeat_type'] == "W":
                 #  week 0 to 6 -> 0-Monday, 6 - Sunday
-                print(f"dt_schedule.timetuple: {dt_schedule.timetuple()}")
+                logger.info(f"__calc_nextruntime_UTC.timetuple: {dt_schedule.timetuple()}")
                 time_tuple = dt_schedule.timetuple()
                 dt_today_day = time_tuple[6]
                 dt_next_day = dt_today_day + delta_day
@@ -941,7 +993,7 @@ class Lambda_Genesys():
                 for i in range(0,7):
                     if param['repeat_on'][dt_next_day] == "1":
                         dt_schedule = dt_schedule + relativedelta(days=+ delta_day)
-                        print(f"NEXT RUN TIME: {dt_schedule}")
+                        logger.info(f"__calc_nextruntime_UTC: NEXT RUN TIME: {dt_schedule}")
                         return dt_schedule
                     else:
                         dt_next_day = dt_next_day + 1
@@ -951,20 +1003,22 @@ class Lambda_Genesys():
             elif param['repeat_type'] == "M":
                 dt_schedule_temp = datetime.strptime(f"{dt_schedule.year}-{dt_schedule.month}-{dt_start_datetime.day}-{p_start_time}", '%Y-%m-%d-%H:%M')
                 dt_schedule = dt_schedule_temp + relativedelta(months=+delta_day)
-                print(f"NEXT RUN TIME: {dt_schedule}")
+                logger.info(f"__calc_nextruntime_UTC: NEXT RUN TIME: {dt_schedule}")
                 return dt_schedule
             elif param['repeat_type'] == "Y":
                 dt_schedule_temp = datetime.strptime(f"{dt_schedule.year}-{dt_start_datetime.month}-{dt_start_datetime.day}-{p_start_time}", '%Y-%m-%d-%H:%M')        
                 dt_schedule = dt_schedule + relativedelta(years=+delta_day)
-                print(f"NEXT RUN TIME: {dt_schedule}")            
+                logger.info(f"__calc_nextruntime_UTC: NEXT RUN TIME: {dt_schedule}")            
                 return dt_schedule
             else:
                 return dt_start_datetime
         except Exception as e:
+            logger.error("__calc_nextruntime_UTC.Exception: {e}")
             raise e 
 
     def get_process_scheduled(self):
         try:
+            logger.info(f"get_process_scheduled.START")
             dynamodb = boto3.resource(
                 'dynamodb', 
                 region_name = self.env['region'],
@@ -975,7 +1029,7 @@ class Lambda_Genesys():
                 FilterExpression=Attr('next_runtime').lt(epoch_current)
             )
             if response["Count"] == 0:
-                print("NO EVENT SCHEDULED")
+                logger.info("get_process_scheduled: NO EVENT SCHEDULED")
                 return {"success": 1}
 
             response_json = response['Items']
@@ -984,17 +1038,19 @@ class Lambda_Genesys():
                 self.__update_scheduled(item)
                 item['last_runtime'] = str(item['last_runtime']) 
                 item['next_runtime'] = str(item['next_runtime'])
+            logger.info(f"get_process_scheduled.END")
             return response_json
 
         except Exception as e:
+            logger.error("get_process_scheduled.Exception: {e}")
             raise e 
 
     def get_run_now(self, param):
         try:
-            print("AFTER - get_process_assignment")    
+            logger.info(f"get_run_now.START")
             assignment_name = param
             # assignment_name = "assignment_3"
-            print(f"scheduled_name: {assignment_name}")
+            logger.info(f"get_run_now.assignment_name: {assignment_name}")
             dynamodb = boto3.resource(
                 'dynamodb', 
                 region_name = self.env['region'],
@@ -1006,33 +1062,35 @@ class Lambda_Genesys():
             response_json = response['Items']
 
             # for adding relevent queue to skill, we are getting queue list.
-            # ----------q_start---------
+            # --------------add_q_start-------------
             q_list = self.__get_queues()
-            print("q_list")
-            print(q_list)
-            # --------q_end-----------
+            logger.info("get_run_now.q_list: {q_list}")
+            # ------------add_q_end---------------
 
             map_assignment =[]
             for item in response_json:
-                # ----------q_start---------
+                # --------------add_q_start-------------
                 item["q_list"] = q_list
-                # ----------q_end---------
+                # --------------add_q_end-------------
                 map_assignment.append(item)
-            print(f"LENGTH: {len(map_assignment)}")
+            logger.info(f"get_run_now.LENGTH: {len(map_assignment)}")
             with ThreadPoolExecutor(max_workers = 10) as executor:
                 task = executor.map(self.__asign_skills, map_assignment)
+            logger.info(f"get_run_now.END")
             return response_json
 
         except Exception as e:
+            logger.error("get_run_now.Exception: {e}")
             raise e             
 
     def post_clone(self):
         try:
+            logger.info(f"post_clone.START")
             if self.event.get('body', None) == None:
                 raise Exception(f"You have to pass the data as JSON in body")
             body_json = json.loads(self.event.get('body'))
             self.__validate_schema("clone", body_json) 
-            print("AFTER __validate_schema")           
+            logger.info("post_clone: AFTER __validate_schema")           
             dynamodb = boto3.resource(
                 'dynamodb', 
                 region_name = self.env['region'],
@@ -1047,30 +1105,32 @@ class Lambda_Genesys():
             response = table.query(
                     KeyConditionExpression=Key('assignment_name').eq(body_json['assignment_name'])
             )
-            print(f"AFTER query - response {response}") 
+            logger.info(f"post_clone: query - response {response}") 
             if "Items" in response:
-                print(f"AFTER if ITEMS - Items: {response['Items']}") 
+                logger.info(f"post_clone:ITEMS: {response['Items']}") 
                 with table.batch_writer() as batch:
                     for item in response['Items']:
                         item['assignment_name'] = body_json['clone_name']
                         batch.put_item(
                             Item=item
                         )
-                    print(f"AFTER able.batch_writer()")
+                    logger.info(f"post_clone: AFTER table.batch_writer()")
             
-            print(f"AFTER if end")
             response_json = {"message":"clone assignment success"}  
+            logger.info(f"post_clone.END")
             return response_json         
         except Exception as e:
+            logger.error("post_clone.Exception: {e}")
             raise e 
 
     def put_mass_update(self):
         try:
+            logger.info(f"put_mass_update.START")
             if self.event.get('body', None) == None:
                 raise Exception(f"You have to pass the data as JSON in body")
             body_json = json.loads(self.event.get('body'))
             self.__validate_schema("mass_update", body_json) 
-            print("AFTER __validate_schema")           
+            logger.info("put_mass_update: AFTER __validate_schema")           
             dynamodb = boto3.resource(
                 'dynamodb', 
                 region_name = self.env['region'],
@@ -1093,17 +1153,20 @@ class Lambda_Genesys():
                         Item=item
                     )
             response_json = {"message": "mass update success"}
+            logger.info(f"put_mass_update.END")
             return response_json         
         except Exception as e:
+            logger.error("put_mass_update.Exception: {e}")
             raise e 
 
     def post_assignment_skill(self):
         try:
+            logger.info(f"post_assignment_skill.START")
             if self.event.get('body', None) == None:
                 raise Exception(f"You have to pass the data as JSON in body")
             body_json = json.loads(self.event.get('body'))
             self.__validate_schema("assignment_add_skill", body_json) 
-            print("AFTER __validate_schema")           
+            logger.info("post_assignment_skill: AFTER __validate_schema")           
             dynamodb = boto3.resource(
                 'dynamodb', 
                 region_name = self.env['region'],
@@ -1126,17 +1189,20 @@ class Lambda_Genesys():
                         Item=item
                     )
             response_json = {"message": "add assignment skill - success"}
+            logger.info(f"post_assignment_skill.END")
             return response_json         
         except Exception as e:
+            logger.error("post_assignment_skill.Exception: {e}")
             raise e 
 
     def delete_assignment_skill(self):
         try:
+            logger.info(f"delete_assignment_skill.START")
             if self.event.get('body', None) == None:
                 raise Exception(f"You have to pass the data as JSON in body")
             body_json = json.loads(self.event.get('body'))
             self.__validate_schema("mass_update", body_json) 
-            print("AFTER __validate_schema")           
+            logger.info("delete_assignment_skill: AFTER __validate_schema")           
             dynamodb = boto3.resource(
                 'dynamodb', 
                 region_name = self.env['region'],
@@ -1159,16 +1225,18 @@ class Lambda_Genesys():
                         Item=item
                     )
             response_json = {"message": "delete assignment skill - success"}
+            logger.info(f"delete_assignment_skill.END")
             return response_json         
         except Exception as e:
+            logger.error("delete_assignment_skill.Exception: {e}")
             raise e 
 
     def __asign_skills(self, item_json):
         try:
-            print("AFTER - __asign_skills")          
-            print(item_json)
-            print(f"agent_id: {item_json['agent_id']}")
-            print(f"agent_name: {item_json['agent_name']}")
+            logger.info(f"__asign_skills.START")
+            logger.info(f"__asign_skills.item_json: {item_json}")
+            logger.info(f"__asign_skills.agent_id: {item_json['agent_id']}")
+            logger.info(f"__asign_skills.agent_name: {item_json['agent_name']}")
             agent_id = item_json['agent_id']
 
             requestHeaders = {
@@ -1189,7 +1257,7 @@ class Lambda_Genesys():
                 # else:
                 #     skill_remove_list.append(body)
             
-            print(f"skill_add_list: {skill_add_list}")
+            logger.info(f"__asign_skills.skill_add_list: {skill_add_list}")
             routing_url_temp = self.env["routing_url"]
             routing_url = routing_url_temp.replace("AGENT_ID", agent_id)                    
             request_body = json.dumps(skill_add_list)
@@ -1197,9 +1265,9 @@ class Lambda_Genesys():
             # PUT /api/v2/users/{userId}/routingskills/bulk -> Replace all routing skills assigned to a user
             response = requests.put(routing_url, data=request_body, headers=requestHeaders)
             if response.status_code == 200:
-                print("Genesys - Skills updated")
+                logger.info("__asign_skills: GOT 200 ok response from - Skills update")
             else:
-                print(f"Failure: { str(response.status_code) } - { response.reason }")
+                logger.info(f"__asign_skills.Failure: { str(response.status_code) } - { response.reason }")
                 raise Exception(f"Failure routing: { str(response.status_code) } - { response.reason }")
 
             # if len(skill_remove_list) > 0:
@@ -1208,15 +1276,17 @@ class Lambda_Genesys():
             #     pass
             self.__delete_assign_queues(item_json)
             self.__assign_queues(item_json)
-
+            logger.info(f"__asign_skills.END")
         except Exception as e:
+            logger.error("__asign_skills.Exception: {e}")
             raise e                
 
     def __update_scheduled(self, item_json):
         try:
+            logger.info(f"__update_scheduled.START")
             next_runtime = self.__calc_nextruntime_UTC(item_json)
             epoch_next_runtime = int(next_runtime.timestamp())
-            print(f"NEXT RUNTIME: {next_runtime}")
+            logger.info(f"__update_scheduled.NEXT RUNTIME: {next_runtime}")
             dynamodb = boto3.resource(
                 'dynamodb', 
                 region_name = self.env['region'],
@@ -1233,11 +1303,14 @@ class Lambda_Genesys():
                     ':l_run': Decimal(item_json['next_runtime'])
                 }
             )
+            logger.info(f"__update_scheduled.END")
         except Exception as e:
+            logger.error("__update_scheduled.Exception: {e}")
             raise e             
 
     def __set_cron_job(self, scheduled_name, hrs, min=0):
         try:
+            logger.info(f"__set_cron_job.START")
             client = boto3.client(
                 'events',
                 region_name = self.env['region'],
@@ -1261,12 +1334,15 @@ class Lambda_Genesys():
                     }
                 ]
             )
+            logger.info(f"__set_cron_job.END")
             return {"message":"put_target success"}
         except Exception as e:
+            logger.error("__set_cron_job.Exception: {e}")
             raise e                
 
     def __del_cron_job(self, scheduled_name):
         try:
+            logger.info(f"__del_cron_job.START")
             client = boto3.client(
                 'events',
                 region_name = self.env['region'],
@@ -1284,36 +1360,41 @@ class Lambda_Genesys():
                 Name = scheduled_name,
                 Force= True
             )
+            logger.info(f"__del_cron_job.END")
             return {"message":"remove scheduled success"}
         except Exception as e:
+            logger.error("__del_cron_job.Exception: {e}")
             raise e 
 
-    # ----------q_start---------
+    # --------------add_q_start-------------
     def __get_queues(self):
         try:
+            logger.info(f"__get_queues.START")
             requestHeaders = {
                 "Authorization": f"{ self.secret_token['token_type'] } { self.secret_token['access_token']}"
             }
             
             response = requests.get(self.env["queue_url"], headers=requestHeaders)
             if response.status_code == 200:
-                print("Got roles")
+                logger.info("__get_queues: Got 200 ok from get queues")
             else:
-                print(f"Failure: { str(response.status_code) } - { response.reason }")
+                logger.info(f"__get_queues.Failure: { str(response.status_code) } - { response.reason }")
                 raise Exception(f"Failure to get Genesys users: { str(response.status_code) } - { response.reason }")
 
             result = response.json() 
             queue_list = {}
             for queue in result["entities"]:
                 queue_list[queue["name"]] = queue["id"]
-
+            logger.info(f"__get_queues.END")
             return queue_list
 
         except Exception as e:
+            logger.error("__get_queues.Exception: {e}")
             raise e 
 
     def __delete_assign_queues(self, item_json):
         try:
+            logger.info(f"__delete_assign_queues.START")
             requestHeaders = {
                 "Authorization": f"{ self.secret_token['token_type'] } { self.secret_token['access_token']}"
             }
@@ -1324,9 +1405,9 @@ class Lambda_Genesys():
 
             response = requests.get(ass_q_url, headers=requestHeaders)
             if response.status_code == 200:
-                print("Got assigned queue for the agent({agent_id})")
+                logger.info("__delete_assign_queues: Got 200 ok for delete assigned queue for the agent({agent_id})")
             else:
-                print(f"Failure: { str(response.status_code) } - { response.reason }")
+                logger.info(f"__delete_assign_queues.Failure: { str(response.status_code) } - { response.reason }")
                 raise Exception(f"Failure to get Genesys users: { str(response.status_code) } - { response.reason }")
 
             result = response.json() 
@@ -1337,19 +1418,20 @@ class Lambda_Genesys():
                 ass_q_detail["q_id"] = item["id"]
                 ass_q_detail["agent_id"] = agent_id
                 map_q.append(ass_q_detail)
-            print(f"__delete_assign_queues.LENGTH: {len(map_q)}")
+            logger.info(f"__delete_assign_queues.LENGTH: {len(map_q)}")
             with ThreadPoolExecutor(max_workers = 10) as executor:
                 task = executor.map(self.__del_assign_q_exec, map_q)
-            print("ASSIGN Q DELETED")
+            logger.info("__delete_assign_queues: ASSIGN Q DELETED")
 
             # Assign members to Q
-
+            logger.info(f"__delete_assign_queues.END")
         except Exception as e:
+            logger.error("__delete_assign_queues.Exception: {e}")
             raise e 
 
     def __del_assign_q_exec(self, ass_q_detail):
         try:
-            print("__del_assign_q_exec")
+            logger.info(f"__del_assign_q_exec.START")
             requestHeaders = {
                 "Authorization": f"{ self.secret_token['token_type'] } { self.secret_token['access_token']}",
                 "Content-Type": "application/json"
@@ -1366,46 +1448,45 @@ class Lambda_Genesys():
 
             response = requests.post(ass_q_url, data=request_body, headers=requestHeaders)
             if response.status_code == 200:
-                print("Assigned q got deleted")
+                logger.info("__del_assign_q_exec: Got 200 ok for delete Assigned Q")
             else:
-                print(f"__del_assign_q_exec.Failure: { str(response.status_code) } - { response.reason }")
+                logger.info(f"__del_assign_q_exec.Failure: { str(response.status_code) } - { response.reason }")
                 raise Exception(f"Failure to delete assign queue to the user: { str(response.status_code) } - { response.reason }")
-
+            logger.info(f"__del_assign_q_exec.END")
         except Exception as e:
+            logger.error("__del_assign_q_exec.Exception: {e}")
             raise e
 
     def __assign_queues(self, item_json):
         try:
-            print("__assign_queues")
+            logger.info(f"__assign_queues.START")
             q_list = item_json["q_list"]
-            print("q_list")
-            print(q_list)
+            logger.info(f"__assign_queues.q_list: {q_list}")
             map_add_q = []
             for skill in item_json['skills']:
                 if int(skill['proficiency']) > 0:
                     skill_name = skill['skill_name'] 
                     if skill_name in q_list:
-                        print(f"Q with Skill name:{skill['skill_name']}")
+                        logger.info(f"__assign_queues: Q with Skill name:{skill['skill_name']}")
                         add_q_list = {}
                         add_q_list['q_id'] = q_list[skill_name]
                         add_q_list['agent_id'] = item_json['agent_id']
                         map_add_q.append(add_q_list)
                     else:
-                        print(f"Q without Skill name:{skill['skill_name']}")
+                        logger.info(f"__assign_queues: Q without Skill name:{skill['skill_name']}")
 
-            print("map_add_q")
-            print(map_add_q)
-            print(f"__assign_queues.LENGTH: {len(map_add_q)}")
+            logger.info(f"__assign_queues.map_add_q: {map_add_q}")
+            logger.info(f"__assign_queues.LENGTH: {len(map_add_q)}")
             with ThreadPoolExecutor(max_workers = 10) as executor:
                 task = executor.map(self.__assign_queues_exec, map_add_q)
-            print("ASSIGN Q - SUCCESS")
-
+            logger.info(f"__assign_queues.END")
         except Exception as e:
+            logger.error("__assign_queues.Exception: {e}")
             raise e
 
     def __assign_queues_exec(self, ass_q_detail):
         try:
-            print("__assign_queues_exec")
+            logger.info(f"__assign_queues_exec.START")
             requestHeaders = {
                 "Authorization": f"{ self.secret_token['token_type'] } { self.secret_token['access_token']}",
                 "Content-Type": "application/json"
@@ -1421,18 +1502,20 @@ class Lambda_Genesys():
 
             response = requests.post(ass_q_url, data=request_body, headers=requestHeaders)
             if response.status_code == 200:
-                print("Assigned queue to agent")
+                logger.info("__assign_queues_exec: GOT 200 ok response - Assigned queue to agent")
             else:
-                print(f"__assign_queues_exec.Failure: { str(response.status_code) } - { response.reason }")
+                logger.info(f"__assign_queues_exec.Failure: { str(response.status_code) } - { response.reason }")
                 raise Exception(f"Failure to add assign queue to the agent: { str(response.status_code) } - { response.reason }")
-
+            logger.info(f"__assign_queues_exec.END")
         except Exception as e:
+            logger.error("__assign_queues_exec.Exception: {e}")
             raise e
 
-    # ----------q_end---------
+    # --------------add_q_end-------------
 
     def get_test(self):
         try:
+            logger.info(f"get_test.START")
             # dt_time = datetime.now()
             # to_zone = tz.gettz('Asia/Kolkata')
             # to_dt = datetime.now(tz=to_zone)
@@ -1478,10 +1561,12 @@ class Lambda_Genesys():
             #         ':s_prof': "1",
             #     }
             # ) 
-            import os           
+            import os
+            logger.info(f"get_test.END")           
             return {
                 "Message": os.getenv('GENESYS_ENV', "default_value"), 
                 "Message_g": os.getenv('REGION', "default_value_g"), 
                 }
         except Exception as e:
+            logger.error("get_test.Exception: {e}")
             raise e                
