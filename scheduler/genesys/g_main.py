@@ -1274,8 +1274,12 @@ class Lambda_Genesys():
             #     # if we are planning to use PATCH, then we have to delete the users with prociency 0.
             #     # DELETE /api/v2/users/{userId}/routingskills/{skillId} -> Remove routing skill from user
             #     pass
-            self.__delete_assign_queues(item_json)
-            self.__assign_queues(item_json)
+
+            # # --------------- Karuna Start -> Temp disable assigning Queue for agents.---------------------------
+            # self.__delete_assign_queues(item_json)
+            # self.__assign_queues(item_json)
+            # # --------------- Karuna End -> Temp disable assigning Queue for agents.---------------------------
+            
             logger.info(f"__asign_skills.END")
         except Exception as e:
             logger.error("__asign_skills.Exception: {e}")
