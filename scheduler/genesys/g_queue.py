@@ -258,7 +258,12 @@ class Lambda_Genesys_Queue():
             # self.__validate_schema("queues", body_json) 
 
             b_reload = body_json.get('reload', False)
-            q_list_old =self.__get_q_list()
+            b_clear_cache = body_json.get('clear_cache', False)
+            
+            if b_clear_cache:
+                q_list_old = None
+            else:
+                q_list_old =self.__get_q_list()
 
             flag_genesys = False
             if ((q_list_old == None) or (b_reload == True)):
@@ -673,6 +678,21 @@ class Lambda_Genesys_Queue():
             logger.info("__validate_schema.END")
         except ValidationError as e:
             raise Exception (f"Invalid json input - message: {e.message}, Error at: {e.json_path}, Valid Schema: {e.schema}") 
+
+    # Karuna - Not completed, delete the rows of both the table contacts, contact_details for clean up
+    # def __clear_cache(self):
+    #     try:
+    #         logger.info("__clear_cache.START")
+    #         table = self.dynamodb.Table(self.env['tbl_q_contacts'])
+    #         result_json['p_key'] = "app_client"
+    #         result_json['queue_id'] = "now"
+    #         response = table.put_item(
+    #             Item=result_json
+    #         )
+
+    #     except Exception as e:
+    #         logger.error(f"__clear_cache.Exception: {e}")
+    #         raise e  
 
     def get_test(self):
         try:
