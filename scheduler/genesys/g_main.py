@@ -1276,8 +1276,8 @@ class Lambda_Genesys():
             #     pass
 
             # # --------------- Karuna Start -> Temp disable assigning Queue for agents.---------------------------
-            # self.__delete_assign_queues(item_json)
-            # self.__assign_queues(item_json)
+            self.__delete_assign_queues(item_json)
+            self.__assign_queues(item_json)
             # # --------------- Karuna End -> Temp disable assigning Queue for agents.---------------------------
             
             logger.info(f"__asign_skills.END")

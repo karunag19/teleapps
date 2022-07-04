@@ -33,7 +33,7 @@ Parameters:
 
 Globals:
   Function:
-    Timeout: 10
+    Timeout: 30
     Environment:
       Variables:
         REGION: !Ref Region  
