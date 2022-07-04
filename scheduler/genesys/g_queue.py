@@ -262,6 +262,7 @@ class Lambda_Genesys_Queue():
             
             if b_clear_cache:
                 q_list_old = None
+                self.__clear_cache()
             else:
                 q_list_old =self.__get_q_list()
 
@@ -679,26 +680,32 @@ class Lambda_Genesys_Queue():
         except ValidationError as e:
             raise Exception (f"Invalid json input - message: {e.message}, Error at: {e.json_path}, Valid Schema: {e.schema}") 
 
-    # Karuna - Not completed, delete the rows of both the table contacts, contact_details for clean up
-    # def __clear_cache(self):
-    #     try:
-    #         logger.info("__clear_cache.START")
-    #         table = self.dynamodb.Table(self.env['tbl_q_contacts'])
-    #         result_json['p_key'] = "app_client"
-    #         result_json['queue_id'] = "now"
-    #         response = table.put_item(
-    #             Item=result_json
-    #         )
-
-    #     except Exception as e:
-    #         logger.error(f"__clear_cache.Exception: {e}")
-    #         raise e  
+    # Karuna - delete the rows of contact_details table for clean up
+    def __clear_cache(self):
+        try:
+            logger.info("__clear_cache.START")
+            
+            table = self.dynamodb.Table(self.env['tbl_contact_details'])
+            response = table.scan()
+            response_json = response['Items']
+            with table.batch_writer() as batch:
+                for contact in response_json:
+                    batch.delete_item(
+                        Key={
+                            'queue_id': contact['queue_id'],
+                            'contact_id': contact['contact_id']
+                        }
+                    )
+            logger.info("__clear_cache.END")
+        except Exception as e:
+            logger.error(f"__clear_cache.Exception: {e}")
+            raise e  
 
     def get_test(self):
         try:
             logger.info("get_test.START")
             # response = self.__update_details()
-            response = self.__get_q_array()
+            response = self.__clear_cache()
             # q_array = ["4dd1d42e-d321-4177-b188-fb9882fbc106", "689324f1-9cea-452c-b0e5-e6b17c3cfdd8"]
             # response_json =self.__get_q_contacts_gc(q_array)
             # response_json = self.__get_contacts_details("01c3bb31-3c55-4e3b-916b-452966aca94d")
