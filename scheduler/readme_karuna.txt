@@ -12,6 +12,9 @@ Deploy the app to borg environment:
         Rename "samconfig_bord.toml" to "samconfig.toml"
     Run deploy command:
         sam deploy --template-file template_cognito.yaml -g
+    Note:
+        Since borg environment has more email, you have to manually increase the memory size of lambda(borg_GenesysQueue)
+        from 512 to 2048
     Angular App deploy:
         update the config.json file in assets/config.json
             {
