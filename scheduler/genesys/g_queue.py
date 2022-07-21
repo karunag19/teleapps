@@ -262,7 +262,8 @@ class Lambda_Genesys_Queue():
             
             if b_clear_cache:
                 q_list_old = None
-                self.__clear_cache()
+                # Karuna - due to slow in delete the mails in table, I am comment this below line.
+                # self.__clear_cache()
             else:
                 q_list_old =self.__get_q_list()
 
