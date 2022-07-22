@@ -373,7 +373,7 @@ Resources:
       Layers:
         - !Ref AppDepLayer      
       Runtime: python3.8
-      MemorySize: 2048
+      MemorySize: 4096
       Environment:
         Variables:
           GENESYS_ENV: !Ref GCEnv
