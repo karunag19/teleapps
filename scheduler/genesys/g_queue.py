@@ -229,7 +229,16 @@ class Lambda_Genesys_Queue():
                 logger.info(f"get_queues.Failure: { str(response.status_code) } - { response.reason }")
                 raise Exception(f"Failure to get Genesys users: { str(response.status_code) } - { response.reason }")
             logger.info("get_queues.END")
-            return response.json()   
+            # return response.json()   
+            queues_json = response.json()
+            filter_q = {}
+            filter_q['entities'] = []
+            q_array = []
+            for queue in queues_json['entities']:
+                q_name = queue['name']
+                if q_name.startswith("EM_"):
+                    filter_q['entities'].append(queue)
+            return filter_q
         except Exception as e:
             logger.error(f"get_queues.Exception: {e}")
             raise e 
@@ -242,7 +251,7 @@ class Lambda_Genesys_Queue():
             for queue in queues_json['entities']:
                 q_array.append(queue['id'])
 
-            logger.info(f"__get_q_array.q_array: {q_array}")
+            logger.info(f"__get_q_array.q_array start with EM_: {q_array}")
             logger.info("__get_q_array.END")
             return q_array
         except Exception as e:
