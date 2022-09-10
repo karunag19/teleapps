@@ -136,3 +136,7 @@ AWS CLI:
 
 AWS SAM Error:
     aws cloudformation delete-stack --stack-name myteststack
+
+Bookmark:
+    Ctl+Atl+K
+    Ctl+P -> Type Bookmark: <function>

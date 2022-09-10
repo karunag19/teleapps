@@ -26,7 +26,7 @@ secret_client = os.getenv('SECRET_CLIENT', "demo-Secret")
 secret_token = os.getenv('SECRET_TOKEN', "demo-AccessToken") 
 tbl_q_contacts = os.getenv('TBL_Q_Contacts', "demo_q_contacts") 
 tbl_contact_details = os.getenv('TBL_Contact_Details', "demo_q_contact_details") 
-contacts_query_interval = os.getenv('CON_QUERY_INTERVAL', 60) 
+contacts_query_interval = os.getenv('CON_QUERY_INTERVAL', 120) 
 # queue_query_interval = os.getenv('QUEUE_QUERY_INTERVAL', 600) 
 
 token_url = f"https://login.{genesys_environment}/oauth/token"
@@ -148,7 +148,7 @@ class Lambda_Genesys_Queue():
                     raise Exception(f"Invalid method type({self.event.get('httpMethod','')}) or name({param[2]})")
                 return result
             elif "detail-type" in self.event and self.event.get('detail-type') == "Scheduled Event":
-                self.get_process_scheduled()
+                self.get_update_contact_details()
             logger.info("execute_method.END")
         except Exception as e:
             logger.error(f"execute_method.Exception: {e}")
@@ -266,8 +266,13 @@ class Lambda_Genesys_Queue():
             body_json = json.loads(self.event.get('body'))
             # self.__validate_schema("queues", body_json) 
 
-            b_reload = body_json.get('reload', False)
             b_clear_cache = body_json.get('clear_cache', False)
+            b_reload = body_json.get('reload', False)
+            # karuna - due to slow, we set the reload always False
+            b_reload = False
+            b_clear_cache = False
+            # --------------karuna reload end -----
+            
             
             if b_clear_cache:
                 q_list_old = None
@@ -287,8 +292,6 @@ class Lambda_Genesys_Queue():
                 current_epochtime = int(time.time())
                 if (current_epochtime-int(response_epochtime)) > self.env['contacts_query_interval']:
                     flag_genesys = True
-                # if (current_epochtime-int(response_epochtime)) > self.env['queue_query_interval']:
-                #     q_array = self.__get_q_array()
             
             if flag_genesys:
                 response_json =self.__get_q_contacts_gc(q_array, q_list_old)
@@ -300,18 +303,47 @@ class Lambda_Genesys_Queue():
             logger.error(f"post_get_qcontacts.Exception: {e}")
             raise e 
 
-    # def get_contact_details(self, param=None): 
-    #     try:
-    #         table = self.dynamodb.Table(self.env['tbl_contact_details'])
-    #         response = response = table.query(
-    #             KeyConditionExpression=Key('queue_id').eq('app_key') 
-    #         )
-    #         response_json = response['Items']
-    #         return response_json   
-    #     except Exception as e:
-    #         raise e 
+    def get_update_contact_details(self): 
+        try:
+            logger.info("get_update_contact_details.START")
+            response_json = self.__get_q_contacts_db()  
+            map_assignment = []
 
-    def __rep_decimal(self, obj):
+            q_list_old_detail = {}
+            q_list_old_detail['queues'] = []
+            q_array = self.__get_q_array()
+            for queue_id in q_array:
+                q_list_old_detail['queues'].append(queue_id)
+                q_list_old_detail[queue_id] = {}
+                q_list_old_detail[queue_id]["oInteracting"] = {}
+                q_list_old_detail[queue_id]["oWaiting"] = {}
+                q_list_old_detail[queue_id]["oInteracting"]["conversation"] = []
+                q_list_old_detail[queue_id]["oWaiting"]["conversation"] = []
+
+            for item in response_json:
+                q_list_old_detail[item["queue_id"]][item["metric"]]["conversation"].append(item["contact_id"])
+                detail = item["details"]
+                if not detail:
+                    logger.info("detail is empty")
+                    data = {}
+                    data['queue_id'] = item["queue_id"]
+                    data['conversation_id'] = item["contact_id"]
+                    logger.info(f"Update Details: {data}")
+                    map_assignment.append(data)
+
+            logger.info(f"get_update_contact_details.LENGTH: {len(map_assignment)}")
+            with ThreadPoolExecutor(max_workers = 10) as executor:
+                for result in executor.map(self.__get_contacts_details, map_assignment):
+                    logger.info("get_update_contact_details.RESULT")
+
+            
+            response_json =self.__get_q_contacts_gc(q_array, q_list_old_detail)
+            
+            return response_json   
+        except Exception as e:
+            raise e 
+
+    def __rep_decimal(self, obj): 
         if isinstance(obj, Decimal):
             return str(obj)
         raise TypeError("Object of type '%s' is not JSON serializable" % type(obj).__name__)
@@ -602,12 +634,14 @@ class Lambda_Genesys_Queue():
                         map_assignment.append(data)
 
 
-
-            logger.info(f"__update_q_table.LENGTH: {len(map_assignment)}")
-            with ThreadPoolExecutor(max_workers = 10) as executor:
-                # task = executor.map(self.__get_contacts_details, map_assignment)
-                for result in executor.map(self.__get_contacts_details, map_assignment):
-                    logger.info("__update_q_table.RESULT")
+            # # Karuna - contact detail will be updated using get_update_contact_details method.
+            # # get_update_contact_details -> this method is call every one minute using Amazon EventBridge
+            # # So we are commenting the below line.
+            # logger.info(f"__update_q_table.LENGTH: {len(map_assignment)}")
+            # with ThreadPoolExecutor(max_workers = 10) as executor:
+            #     # task = executor.map(self.__get_contacts_details, map_assignment)
+            #     for result in executor.map(self.__get_contacts_details, map_assignment):
+            #         logger.info("__update_q_table.RESULT")
 
             result = self.__get_q_contacts_db()
             # return result_json

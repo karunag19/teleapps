@@ -373,7 +373,7 @@ Resources:
       Layers:
         - !Ref AppDepLayer      
       Runtime: python3.8
-      MemorySize: 4096
+      MemorySize: 8192
       Environment:
         Variables:
           GENESYS_ENV: !Ref GCEnv
@@ -419,7 +419,12 @@ Resources:
                   Identity:
                     Header: Authorization
                     ReauthorizeEvery: 300
-              
+        ScheduledFunction:
+          Type: Schedule
+          Properties:
+            Schedule: rate(1 minute)
+
+
   KeyAuthorizerFunction:
     Type: AWS::Serverless::Function 
     Properties:
