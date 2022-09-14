@@ -38,7 +38,6 @@ agents_url = f"https://api.{genesys_environment}/api/v2/users?pageSize=500"
 # routing_url = f"https://api.{genesys_environment}/api/v2/users/AGENT_ID/routingskills" 
 routing_url = f"https://api.{genesys_environment}/api/v2/users/AGENT_ID/routingskills/bulk" 
 previous_agents_url = f"https://api.{genesys_environment}/api/v2/analytics/conversations/details?id=CONVERSATION_ID"
-t_contact_url = f"https://api.{genesys_environment}/api/v2/analytics/conversations/details/query"
 
 env = {
     "secret_client_key" : secret_client,
@@ -50,7 +49,6 @@ env = {
     "q_details": q_details,
     "skills_url" : skills_url,
     "agents_url" : agents_url,
-    "t_contact_url": t_contact_url,
     "previous_agents_url": previous_agents_url,
     "routing_url" : routing_url,
     "region" : region,
@@ -255,7 +253,7 @@ class Lambda_Genesys_Queue():
             for queue in queues_json['entities']:
                 q_array.append(queue['id'])
 
-            logger.debug(f"__get_q_array.q_array start with EM_: {q_array}")
+            logger.info(f"__get_q_array.q_array start with EM_: {q_array}")
             logger.info("__get_q_array.END")
             return q_array
         except Exception as e:
@@ -298,8 +296,7 @@ class Lambda_Genesys_Queue():
                     flag_genesys = True
             
             if flag_genesys:
-                result =self.__get_q_contacts_gc(q_array, q_list_old)
-                response_json = result['result']
+                response_json =self.__get_q_contacts_gc(q_array, q_list_old)
             else:
                 response_json = self.__get_q_contacts_db()
             logger.info("post_get_qcontacts.END")
@@ -340,35 +337,30 @@ class Lambda_Genesys_Queue():
                     logger.info(f"Update Details: {data}")
                     map_assignment.append(data)
 
-                # q_list_agent_details[item["queue_id"]][item["metric"]]["conversation"].append(item["contact_id"])
-                # previous_detail = item["agents"]
-                # if not previous_detail:
-                #     logger.info("Preview agent is empty")
-                #     data = {}
-                #     data['queue_id'] = item["queue_id"]
-                #     data['conversation_id'] = item["contact_id"]
-                #     logger.info(f"Update Details: {data}")
-                #     map_assignment_agent.append(data)
+            for item in response_json:
+                q_list_agent_details[item["queue_id"]][item["metric"]]["conversation"].append(item["contact_id"])
+                previous_detail = item["agents"]
+                if not previous_detail:
+                    logger.info("Preview agent is empty")
+                    data = {}
+                    data['queue_id'] = item["queue_id"]
+                    data['conversation_id'] = item["contact_id"]
+                    logger.info(f"Update Details: {data}")
+                    map_assignment_agent.append(data)
 
             logger.info(f"get_update_contact_details.LENGTH: {len(map_assignment)}")
             with ThreadPoolExecutor(max_workers = 10) as executor:
                 for result in executor.map(self.__get_contacts_details, map_assignment):
                     logger.info("get_update_contact_details.END")
 
-            # logger.info(f"get_update_contact_agents.LENGTH: {len(map_assignment_agent)}")
-            # with ThreadPoolExecutor(max_workers = 10) as executor:
-            #     for result in executor.map(self.__get_previous_agent, map_assignment_agent):
-            #         logger.info("get_update_contact_agents.END")
+            logger.info(f"get_update_contact_details.LENGTH: {len(map_assignment_agent)}")
+            with ThreadPoolExecutor(max_workers = 10) as executor:
+                for result in executor.map(self.__get_previous_agent, map_assignment_agent):
+                    logger.info("get_update_contact_agents.END")
                                 
             response_json =self.__get_q_contacts_gc(q_array, q_list_old_detail)
             
-            # Need to implement forloop with truncat list with ThreadPoolExecutor.
-            q_id = "5c3de963-3b88-46bd-807f-329903f5091a"
-            result = self.__get_truncated_contacts_gc(q_id, q_list_old_detail[q_id])
-
-            
-            # return response_json['result']   
-            return result 
+            return response_json   
         except Exception as e:
             raise e 
 
@@ -423,46 +415,20 @@ class Lambda_Genesys_Queue():
             }
             request_body = self.__get_filter(q_array)
             response = requests.post(self.env["q_query_url"], json=request_body, headers=requestHeaders)
-            # logger.info(f"__get_q_contacts_gc.response: {response}")
+            logger.info(f"__get_q_contacts_gc.response: {response}")
 
             if response.status_code == 200:
                 logger.info("__get_q_contacts_gc: Got 200 ok to get contacts")
             else:
                 logger.info(f"__get_q_contacts_gc.Failure: { str(response.status_code) } - { response.reason }")
                 raise Exception(f"Failure to get Genesys access token: { str(response.status_code) } - { response.reason }")
-            # logger.info(f"__get_q_contacts_gc.response: {response.json()}")
+            logger.info(f"__get_q_contacts_gc.response: {response.json()}")
             result = self.__process_result(response.json(), q_list_old)
             logger.info("__get_q_contacts_gc.END")
             return result               
         except Exception as e:
             logger.error(f"__get_q_contacts_gc.Exception: {e}")
-            raise e    
-
-    def __get_truncated_contacts_gc(self, queue_id, q_list_old):
-        try:
-            logger.info("__get_q__get_truncated_contacts_gc_contacts_gc.START")
-            requestHeaders = {
-                "Authorization": f"{ self.secret_token['token_type'] } { self.secret_token['access_token']}",
-                "Content-Type": "application/json"
-            }
-            request_body = self.__get_truncat_filter(queue_id)
-            response = requests.post(self.env["t_contact_url"], json=request_body, headers=requestHeaders)
-            # logger.info(f"__get_truncated_contacts_gc.response: {response}")
-
-            if response.status_code == 200:
-                logger.info("__get_truncated_contacts_gc: Got 200 ok to get contacts")
-            else:
-                logger.info(f"__get_truncated_contacts_gc.Failure: { str(response.status_code) } - { response.reason }")
-                raise Exception(f"Failure to get Truncated Contacts: { str(response.status_code) } - { response.reason }")
-            # logger.info(f"__get_truncated_contacts_gc.response: {response.json()}")
-            result = response
-
-            result = self.__process_truncat_result(response.json(), q_list_old, queue_id)
-            logger.info("__get_truncated_contacts_gc.END")
-            return result               
-        except Exception as e:
-            logger.error(f"__get_truncated_contacts_gc.Exception: {e}")
-            raise e  
+            raise e     
 
     def __get_contacts_details(self, data):
         try:
@@ -552,65 +518,7 @@ class Lambda_Genesys_Queue():
         except Exception as e:
             logger.error(f"__get_filter.Exception: {e}")
             raise e    
-
-    def __get_truncat_filter(self, queue_id):
-        try:
-            logger.info("__get_truncat_filter.START")
-            filter_json = {}
-            filter_json["interval"] = "2022-09-07T00:00:00.000Z/2022-09-15T22:00:00.000Z"
-            filter_json["order"] = "desc"
-            filter_json["orderBy"] = "conversationStart"
-
-            filter_json["paging"] = {}
-            filter_json["paging"]["pageSize"] = 100  
-            filter_json["paging"]["pageNumber"] = 1
-            
-            filter_json["segmentFilters"] = []
-            segment_temp = {}
-            segment_temp["type"] = "and"
-            segment_temp["predicates"] = []
-            pred_temp = {}
-            pred_temp["type"] = "dimension"
-            pred_temp["dimension"] = "purpose"
-            pred_temp["operator"] = "matches"
-            pred_temp["value"] = "acd"
-            segment_temp["predicates"].append(pred_temp)
-            pred_temp = {}
-            pred_temp["type"] = "dimension"
-            pred_temp["dimension"] = "queueId"
-            pred_temp["operator"] = "matches"
-            pred_temp["value"] = queue_id
-            segment_temp["predicates"].append(pred_temp)
-            pred_temp = {}
-            pred_temp["type"] = "dimension"
-            pred_temp["dimension"] = "segmentType"
-            pred_temp["operator"] = "matches"
-            pred_temp["value"] = "interact"
-            segment_temp["predicates"].append(pred_temp)
-            pred_temp = {}
-            pred_temp["type"] = "dimension"
-            pred_temp["dimension"] = "segmentEnd"
-            pred_temp["operator"] = "notExists"
-            pred_temp["value"] = None
-            segment_temp["predicates"].append(pred_temp)
-            filter_json["segmentFilters"].append(segment_temp)
-
-            filter_json["conversationFilters"] = []
-            conver_temp = {}
-            conver_temp["type"] = "and"
-            conver_temp["predicates"] = []
-            pred_temp = {}
-            pred_temp["type"] = "dimension"
-            pred_temp["dimension"] = "conversationEnd"
-            pred_temp["operator"] = "notExists"
-            pred_temp["value"] = None
-            conver_temp["predicates"].append(pred_temp)
-            filter_json["conversationFilters"].append(conver_temp)
-
-            return filter_json
-        except Exception as e:
-            logger.error(f"__get_truncat_filter.Exception: {e}")
-            raise e    
+   
 
     def __process_result(self, result_json, q_list_old):
         try:
@@ -620,26 +528,12 @@ class Lambda_Genesys_Queue():
             qlist_json = {}
             qlist_json['queues'] = []
             qlist_json['timestamp'] = epoch_time
-            
-            truncated_json = {}
-            truncated_json["queues"] = []
-            
             for queue in result_json["results"]:
                 queueId = queue["group"]["queueId"]
                 qlist_json['queues'].append(queueId)
                 qlist_json[queueId] = {}
                 # qlist_json[queueId]['conversation'] = []
                 for contact_metric in queue["data"]: 
-                    # logger.info(f"__process_result.contact_metric: {contact_metric}")
-                    count = contact_metric["stats"]["count"]
-                    is_truncated = False
-                    if count > 0:
-                        is_truncated = bool(contact_metric["truncated"])
-                    if is_truncated:
-                        truncated_json["queues"].append(queueId) 
-                        truncated_json[queueId] = {}
-                        truncated_json[queueId]["count"] = count
-
                     metric = contact_metric["metric"]
                     qlist_json[queueId][metric] = {}
                     qlist_json[queueId][metric]['conversation'] = []                    
@@ -659,73 +553,15 @@ class Lambda_Genesys_Queue():
                         conversation["metric"] = metric
                         data_json.append(conversation)
 
-            # logger.info(f"__process_result.qlist_json: {qlist_json}")
+            logger.info(f"__process_result.qlist_json: {qlist_json}")
             self.__update_q_list(qlist_json)
-            add_del_list = self.__compare_q_list(qlist_json, q_list_old, truncated_json)
-            # logger.info(f"__process_result.add_del_list: {add_del_list}")
+            add_del_list = self.__compare_q_list(qlist_json, q_list_old)
+            logger.info(f"__process_result.add_del_list: {add_del_list}")
             result = self.__update_q_table(data_json, add_del_list)
-            logger.info(f"__process_result.truncated_json: {truncated_json}")
             logger.info("__process_result.END")
-            return {"result": result, "truncat": truncated_json} 
+            return result
         except Exception as e:
             logger.error(f"__process_result.Exception: {e}")
-            raise e   
-
-    def __process_truncat_result(self, result_json, q_list_old, queue_id):
-        try:
-            logger.info("__process_truncat_result.START")
-            logger.info(f"__process_truncat_result.queue_id:{queue_id}")
-            epoch_time = int(time.time())
-            c_list_json = {}
-            c_list_json[queue_id] = {}
-            c_list_json[queue_id]["oWaiting"] = {}
-            c_list_json[queue_id]["oWaiting"]['conversation'] = []  
-            for conversation in result_json["conversations"]:
-                con_json = {}
-                con_json["contact_id"] = conversation["conversationId"]
-                con_json["data"] = {}
-                con_json["data"]["addressFrom"] = ""
-                con_json["data"]["addressTo"] = ""
-                con_json["data"]["conversationId"] = conversation["conversationId"]
-                con_json["data"]["direction"] = ""
-                con_json["data"]["observationDate"] = ""
-                con_json["data"]["participantName"] = ""
-                con_json["data"]["routingPriority"] = 0
-                con_json["data"]["sessionId"] = ""
-                con_json["details"] = {}
-                con_json["agents"] = {}
-                con_json["timestamp"] = epoch_time
-                con_json["metric"] = "oWaiting"
-                
-                for participant in conversation["participants"]:
-                    if participant["purpose"] == "acd":
-                        con_json["data"]["participantName"] = participant["participantName"]
-                        for session in participant["sessions"]:
-                            con_json["data"]["addressFrom"] = session["addressFrom"]
-                            con_json["data"]["addressTo"] = session["addressTo"]
-                            con_json["data"]["direction"] = session["direction"]
-                            con_json["data"]["sessionId"] = session["sessionId"]
-                            for metric in session["metrics"]:
-                                con_json["data"]["observationDate"] = metric["emitDate"]
-
-
-
-
-                c_list_json[queue_id]["oWaiting"]['conversation'].append(con_json)
-
-            add_del_list = self.__compare_truncat_list(c_list_json, q_list_old, queue_id)
-            # # logger.info(f"__process_truncat_result.add_del_list: {add_del_list}")
-            # # result = self.__update_q_table(data_json, add_del_list)
-            # logger.info(f"__process_truncat_result.truncated_json: {truncated_json}")
-            # logger.info("__process_truncat_result.END")
-            result_json = {}
-            # result_json["Conversation"] = data_json
-            # result_json["c_list_json"] = c_list_json
-            result_json["add_del_list"] = add_del_list
-            
-            return result_json
-        except Exception as e:
-            logger.error(f"__process_truncat_result.Exception: {e}")
             raise e   
 
     def __update_q_list(self, result_json):
@@ -737,37 +573,35 @@ class Lambda_Genesys_Queue():
             response = table.put_item(
                 Item=result_json
             )
-            # logger.info(f"__update_q_list.result: {result_json}")
+            logger.info(f"__update_q_list.result: {result_json}")
             logger.info("__update_q_list.END")
             return result_json
         except Exception as e:
             logger.error(f"__update_q_list.Exception: {e}")
             raise e 
 
-    def __compare_q_list(self, new_json, old_json, truncated_json):
+    def __compare_q_list(self, new_json, old_json):
         try:
             logger.info("__compare_q_list.START")
             add_qlist = {}
             del_qlist = {}
             # update_qlist = {}
             queues = []
-            # logger.debug(f"__compare_q_list.new_json['queues'] {new_json['queues']}")
             for queue_id in new_json['queues']:
                 queues.append(queue_id)
                 add_qlist[queue_id] = []
                 del_qlist[queue_id] = []
                 # update_qlist[queue_id] = []
-                if queue_id in truncated_json["queues"]:
-                    logger.debug(f"__compare_q_list.FOR LOOP CONTINUE {queue_id}")
+                if queue_id not in new_json:
                     continue
                 for conversation_id in new_json[queue_id]['oWaiting']['conversation']:
-                    # logger.debug(f"__compare_q_list.conversation_id: {conversation_id}")
+                    logger.info(f"__compare_q_list.conversation_id: {conversation_id}")
                     if old_json == None:
                         if conversation_id not in add_qlist[queue_id]:
                             add_qlist[queue_id].append(conversation_id)
                         logger.info(f"__compare_q_list.add_qlist: {add_qlist[queue_id]}")
                         continue
-                    # logger.info(f"__compare_q_list.old_json[queue_id]:{old_json[queue_id]['oWaiting']['conversation']}")
+                    logger.info(f"__compare_q_list.old_json[queue_id]:{old_json[queue_id]['oWaiting']['conversation']}")
                     if conversation_id not in old_json[queue_id]['oWaiting']['conversation']:
                         if conversation_id not in add_qlist[queue_id]:
                             add_qlist[queue_id].append(conversation_id)
@@ -802,79 +636,6 @@ class Lambda_Genesys_Queue():
             return result
         except Exception as e:
             logger.error(f"__compare_q_list.Exception: {e}")
-            raise e
-
-    def __compare_truncat_list(self, new_json, old_json, queue_id):
-        try:
-            logger.info("__compare_truncat_list.START")
-            add_qlist = {}
-            del_qlist = {}
-
-            add_qlist[queue_id] = []
-            del_qlist[queue_id] = []
-
-            for conversation_id in new_json['oWaiting']['conversation']:
-                if old_json == None:
-                    if conversation_id not in add_qlist[queue_id]:
-                        add_qlist[queue_id].append(conversation_id)
-                    logger.info(f"__compare_truncat_list.add_qlist: {add_qlist[queue_id]}")
-                    continue
-                # logger.info(f"__compare_truncat_list.old_json[queue_id]:{old_json[queue_id]['oWaiting']['conversation']}")
-                if conversation_id not in old_json[queue_id]['oWaiting']['conversation']:
-                    if conversation_id not in add_qlist[queue_id]:
-                        add_qlist[queue_id].append(conversation_id)
-
-            # # update_qlist = {}
-            # queues = []
-            # # logger.debug(f"__compare_truncat_list.new_json['queues'] {new_json['queues']}")
-            # for queue_id in new_json['queues']:
-            #     queues.append(queue_id)
-            #     add_qlist[queue_id] = []
-            #     del_qlist[queue_id] = []
-            #     # update_qlist[queue_id] = []
-
-            #     for conversation_id in new_json[queue_id]['oWaiting']['conversation']:
-            #         # logger.debug(f"__compa__compare_truncat_listre_q_list.conversation_id: {conversation_id}")
-            #         if old_json == None:
-            #             if conversation_id not in add_qlist[queue_id]:
-            #                 add_qlist[queue_id].append(conversation_id)
-            #             logger.info(f"__compare_truncat_list.add_qlist: {add_qlist[queue_id]}")
-            #             continue
-            #         # logger.info(f"__compare_truncat_list.old_json[queue_id]:{old_json[queue_id]['oWaiting']['conversation']}")
-            #         if conversation_id not in old_json[queue_id]['oWaiting']['conversation']:
-            #             if conversation_id not in add_qlist[queue_id]:
-            #                 add_qlist[queue_id].append(conversation_id)
-            #     for conversation_id in new_json[queue_id]['oInteracting']['conversation']:
-            #         if old_json == None:
-            #             if conversation_id not in add_qlist[queue_id]:
-            #                 add_qlist[queue_id].append(conversation_id)
-            #             continue
-            #         if conversation_id not in old_json[queue_id]['oInteracting']['conversation']:
-            #             if conversation_id not in add_qlist[queue_id]:
-            #                 add_qlist[queue_id].append(conversation_id)
-
-            #     if old_json != None:
-            #         # for conversation_id in old_json[queue_id]['conversation']:
-            #         #     if conversation_id not in new_json[queue_id]['conversation']:
-            #         #         del_qlist[queue_id].append(conversation_id)
-            #         # Karuna - code change for include interaction emails.
-            #         for conversation_id in old_json[queue_id]['oWaiting']['conversation']:
-            #             if (conversation_id not in new_json[queue_id]['oWaiting']['conversation']):
-            #                 if conversation_id not in del_qlist[queue_id]:
-            #                     del_qlist[queue_id].append(conversation_id)
-            #         for conversation_id in old_json[queue_id]['oInteracting']['conversation']:
-            #             if (conversation_id not in new_json[queue_id]['oInteracting']['conversation']):
-            #                  if conversation_id not in del_qlist[queue_id]:
-            #                     del_qlist[queue_id].append(conversation_id)
-            result = {}
-            result["add"] = new_json
-            # result["del"] = old_json
-            # result["queues"] = queues
-            # result["update"] = update_qlist
-            logger.info("__compare_truncat_list.END")
-            return result
-        except Exception as e:
-            logger.error(f"__compare_truncat_list.Exception: {e}")
             raise e
 
     def __update_q_table(self, result_json, add_del_list):
@@ -1059,55 +820,13 @@ class Lambda_Genesys_Queue():
     def get_test(self):
         try:
             logger.info("get_test.START")
-
-            q_list_old = {
-                            "oInteracting": {
-                                "conversation": []
-                            },
-                            "oWaiting": {
-                                "conversation": [
-                                    "03d56a0e-7b41-42d4-8d3d-c37677119f95",
-                                    "19f34f83-b5b3-49ac-9f96-44481de40330",
-                                    "1a2c7b79-9af4-41fe-a8cb-10caeb40611c",
-                                    "1e4e9456-a540-42e0-a054-6b6078e8512f",
-                                    "1e660972-fff7-4fd7-b007-3daeabe78d70",
-                                    "1e8f51ca-fdf6-4422-b82a-3992999a7a09",
-                                    "204835b0-b2a5-4fbb-9698-9513f5ad8e06",
-                                    "289ec45f-5816-48ee-bbcf-5a24fa74698f",
-                                    "2da46310-1757-4ee9-bd7f-258908f375a5",
-                                    "315e71a9-ddc7-4714-85f4-23c088aa8038",
-                                    "33c5516b-032b-4d42-840b-da3395f05931",
-                                    "399bfc33-9e68-4e0a-9287-eafa622bc879",
-                                    "39c23fff-ed0f-4ff6-a6b8-25b2f4e0c0a9",
-                                    "3dbbf947-3430-43ac-9cad-1c1a9889f05d",
-                                    "49d510db-2ed9-427d-aa49-d19bd36c9767",
-                                    "4c1b2afd-b3d6-44d5-9000-f4bdbdf96844",
-                                    "4ccee194-c91b-4281-946e-141a02c30acf",
-                                    "5279938f-f9c7-4653-87ec-a3e771bf8c69",
-                                    "64199c5f-ff08-4f8d-84f0-78b2401312f2",
-                                    "6c50249b-69aa-454e-afce-7c32c5eb5f30",
-                                    "75110ef1-2eb9-4d46-9914-20eccf09f6cf",
-                                    "7cf51a26-3442-4d03-9d7d-cdf416b33536",
-                                    "83983744-d19a-49fb-9d93-c3bb5c0a11a6",
-                                    "8af8dc9b-3a3c-45f3-8e9b-0db5b0def4e9",
-                                    "a62c1586-1cec-4f7e-9a89-c9eebbbb88de",
-                                    "b4059c1c-d3cf-43f3-862d-1281afc87cdf",
-                                    "b8436ab3-6fc1-4d00-85a8-ccd2793ee1cb",
-                                    "bc5e12ad-c97c-41bc-bb5e-1a09ab8c6a84",
-                                    "c970dc57-535f-4713-b201-6bd688acb16c",
-                                    "ce905a4c-9de6-4075-991b-d52d55bb1e3a",
-                                    "e2ac8018-4b54-490d-b0c2-ed1d34ea91c5",
-                                    "e6e6c72d-2b6b-4064-8b14-f9c2bad1c637",
-                                    "eec8af8f-ff1c-47b8-88b1-b39b0bd5d6b2",
-                                    "f1085b9b-d77d-4ecd-a6ec-1817f08ed7e8"
-                                ]
-                            }
-                        }
-                    
-
-
-            response = self.__get_truncated_contacts_gc("5c3de963-3b88-46bd-807f-329903f5091a", q_list_old)
-            # response = {"test":"Karuna"}
+            # response = self.__update_details()
+            # response = self.__clear_cache()
+            q_array = self.__get_q_array()
+            response = self.__get_filter(q_array)
+            # q_array = ["4dd1d42e-d321-4177-b188-fb9882fbc106", "689324f1-9cea-452c-b0e5-e6b17c3cfdd8"]
+            # response_json =self.__get_q_contacts_gc(q_array)
+            # response_json = self.__get_contacts_details("01c3bb31-3c55-4e3b-916b-452966aca94d")
             logger.info("get_test.END")
             return response
         except Exception as e:

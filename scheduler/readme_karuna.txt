@@ -60,6 +60,9 @@ To run the sam localy
 To start the local web interface
     sam local start-api
     sam local start-api --host 10.10.42.26 --port 3000
+    Note: if you want to configure the borg environment to access, before running
+        you have to set the aws to borg environment -> export AWS_PROFILE=borg
+        change the template.yaml to borg environment and run the above command.
     Note: To run local dont use template_cognito.yaml, use only default template.  In template we had set the 
         environment variable to demo environment.
     E.g. (Dont use the below command in local)
