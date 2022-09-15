@@ -10,30 +10,30 @@ Globals:
     Timeout: 10
     Environment:
       Variables:
-        # REGION: "ap-southeast-2"  
-        # GENESYS_ENV: "mypurecloud.com.au" 
-        # SECRET_CLIENT: demo-Secret
-        # SECRET_TOKEN: demo-AccessToken
-        # USER_POOL_ID: ap-southeast-2_fH8Dbx7A0     
-        # TBL_ASSIGNMENT: demo_gc_assignment
-        # TBL_ASSIGNMENT_SKILL: demo_gc_assignment_skill
-        # TBL_SCHEDULED: demo_gc_scheduled
-        # TBL_API_KEY: demo_api_key
-        # TBL_Q_Contacts: demo_q_contacts
-        # TBL_Contact_Details: demo_q_contact_details
-
-        # borg environment 
         REGION: "ap-southeast-2"  
         GENESYS_ENV: "mypurecloud.com.au" 
-        SECRET_CLIENT: borg-Secret
-        SECRET_TOKEN: borg-AccessToken
+        SECRET_CLIENT: demo-Secret
+        SECRET_TOKEN: demo-AccessToken
         USER_POOL_ID: ap-southeast-2_fH8Dbx7A0     
-        TBL_ASSIGNMENT: borg_gc_assignment
-        TBL_ASSIGNMENT_SKILL: borg_gc_assignment_skill
-        TBL_SCHEDULED: borg_gc_scheduled
-        TBL_API_KEY: borg_api_key
-        TBL_Q_Contacts: borg_q_contacts
-        TBL_Contact_Details: borg_q_contact_details
+        TBL_ASSIGNMENT: demo_gc_assignment
+        TBL_ASSIGNMENT_SKILL: demo_gc_assignment_skill
+        TBL_SCHEDULED: demo_gc_scheduled
+        TBL_API_KEY: demo_api_key
+        TBL_Q_Contacts: demo_q_contacts
+        TBL_Contact_Details: demo_q_contact_details
+
+        # # borg environment 
+        # REGION: "ap-southeast-2"  
+        # GENESYS_ENV: "mypurecloud.com.au" 
+        # SECRET_CLIENT: borg-Secret
+        # SECRET_TOKEN: borg-AccessToken
+        # USER_POOL_ID: ap-southeast-2_fH8Dbx7A0     
+        # TBL_ASSIGNMENT: borg_gc_assignment
+        # TBL_ASSIGNMENT_SKILL: borg_gc_assignment_skill
+        # TBL_SCHEDULED: borg_gc_scheduled
+        # TBL_API_KEY: borg_api_key
+        # TBL_Q_Contacts: borg_q_contacts
+        # TBL_Contact_Details: borg_q_contact_details
 
 Resources:
   UsersFunction:
