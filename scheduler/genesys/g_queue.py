@@ -302,7 +302,8 @@ class Lambda_Genesys_Queue():
 
             # Compare the Conversation with old list
             conversation_add_del_list = self.__compare_conversation_list(conversation_id_list_new, conversation_id_list_old, truncated_list_new)
-            
+
+            # return {"c_list_new": conversation_list_new, "add_del_list": conversation_add_del_list, "detail": map_assignment_details}
             # Update new conversations in detail table
             result = self.__update_q_table(conversation_detail_list_new, conversation_add_del_list)
             
@@ -314,7 +315,7 @@ class Lambda_Genesys_Queue():
                 data["q_list_old"][queue_id] = conversation_id_list_old[queue_id]
                 map_assignment_truncat.append(data)
 
-            with ThreadPoolExecutor(max_workers = 10) as executor:
+            with ThreadPoolExecutor(max_workers = 5) as executor:
                 for result in executor.map(self.__get_truncated_contacts_gc, map_assignment_truncat):
                     logger.info("get_update_contact_agents.END")
 
@@ -330,7 +331,7 @@ class Lambda_Genesys_Queue():
                 for result in executor.map(self.__get_previous_agent, map_assignment_agent):
                     logger.info("get_update_contact_agents.END")
 
-            logger.info(f"__get_truncated_contacts_gc.END")
+            logger.info(f"get_update_contact_details.END")
 
             return {"result": "Success"}
 
@@ -347,6 +348,7 @@ class Lambda_Genesys_Queue():
             # result = self.__update_truncat_table(conversation_trun_detail_list_new, conversation_truncat_add_del_list)
 
         except Exception as e:
+            logger.error(f"get_update_contact_details.Exception: {e}")
             raise e 
 
 
@@ -365,9 +367,12 @@ class Lambda_Genesys_Queue():
                 conversation_list_old[queue_id]["oInteracting"] = {}
                 conversation_list_old[queue_id]["oWaiting"] = {}
                 conversation_list_old[queue_id]["oInteracting"]["conversation"] = []
+                conversation_list_old[queue_id]["oInteracting"]["count"] = 0
                 conversation_list_old[queue_id]["oWaiting"]["conversation"] = []
+                conversation_list_old[queue_id]["oWaiting"]["count"] = 0
 
             for item in contacts_list_db:
+                logger.debug(f"__get_agent_details_empty_list.item: {item}")
                 conversation_list_old[item["queue_id"]][item["metric"]]["conversation"].append(item["contact_id"])
                 detail = item["details"]
                 if not detail:
@@ -386,6 +391,10 @@ class Lambda_Genesys_Queue():
                     logger.info(f"Update Details: {data}")
                     if item["queue_id"] in reschedule_id:
                         map_assignment_agent.append(data)
+
+            for queue_id in q_array:
+                conversation_list_old[queue_id]["oInteracting"]["count"] = len(conversation_list_old[queue_id]["oInteracting"]["conversation"])
+                conversation_list_old[queue_id]["oWaiting"]["count"] = len(conversation_list_old[queue_id]["oWaiting"]["conversation"])
 
             result = {}
             result["conversation_id_list_old"] = conversation_list_old
@@ -565,11 +574,12 @@ class Lambda_Genesys_Queue():
                     logger.info(f"LESS THAN TOTALHITS")
                     break
 
-            conversation_truncat_raw_new = result
+
+            conversation_truncat_raw_new = result_total
             conversation_truncat_list_new = self.__process_truncat_result(conversation_truncat_raw_new, queue_id)
             conversation_truncat_detail_list_new = conversation_truncat_list_new["conversation_trun_detail_list_new"]
             conversation_truncat_id_list_new = conversation_truncat_list_new["conversation_trun_id_list_new"]
-            
+
             conversation_id_list_old_q = q_list_old
             conversation_truncat_add_del_list = self.__compare_truncat_list(conversation_truncat_id_list_new, conversation_id_list_old_q, queue_id)
             
@@ -753,6 +763,9 @@ class Lambda_Genesys_Queue():
             qlist_json = {}
             qlist_json['queues'] = []
             qlist_json['timestamp'] = epoch_time
+            qlist_json['total_count'] = {}
+            qlist_json['total_count']["oWaiting"] = 0
+            qlist_json['total_count']["oInteracting"] = 0
             
             truncated_json = {}
             truncated_json["queues"] = []
@@ -774,7 +787,9 @@ class Lambda_Genesys_Queue():
 
                     metric = contact_metric["metric"]
                     qlist_json[queueId][metric] = {}
-                    qlist_json[queueId][metric]['conversation'] = []                    
+                    qlist_json[queueId][metric]['conversation'] = [] 
+                    qlist_json[queueId][metric]['conversation_count'] = 0 
+                    qlist_json[queueId][metric]['count'] = count                   
                     if contact_metric["stats"]["count"] < 1:
                         continue 
                     for contacts in contact_metric["observations"]:
@@ -790,6 +805,8 @@ class Lambda_Genesys_Queue():
                         conversation["timestamp"] = epoch_time
                         conversation["metric"] = metric
                         data_json.append(conversation)
+                    qlist_json[queueId][metric]['conversation_count'] = len(qlist_json[queueId][metric]['conversation'])
+                    qlist_json['total_count'][metric] = qlist_json['total_count'][metric] + qlist_json[queueId][metric]['count']
 
             result = {}
             result["conversation_detail_list_new"] = data_json
@@ -837,15 +854,16 @@ class Lambda_Genesys_Queue():
                 con_json["data"]["routingPriority"] = 0
                 con_json["data"]["sessionId"] = ""
                 con_json["details"] = {}
-                con_json["previousAgent"] = {}
+                con_json["previousAgent"] = None
                 con_json["timestamp"] = epoch_time
                 con_json["metric"] = "oWaiting"
                 
                 for participant in conversation["participants"]:
                     logger.info("__process_truncat_result.3")
-                    if participant["purpose"] == "acd":
+                    if participant["purpose"] == "external":
                         if "participantName" in participant:
                             con_json["data"]["participantName"] = participant["participantName"]
+                    if participant["purpose"] == "acd":
                         for session in participant["sessions"]:
                             con_json["data"]["addressFrom"] = session["addressFrom"]
                             con_json["data"]["addressTo"] = session["addressTo"]
@@ -1056,7 +1074,9 @@ class Lambda_Genesys_Queue():
                     'queue_id': result_json['queue_id'],
                     'contact_id': result_json['conversation_id'],
                 },
+                ConditionExpression='attribute_exists(queue_id) AND attribute_exists(contact_id)',
                 UpdateExpression="SET #s_column=:s_value",
+                
                 ExpressionAttributeNames={
                     "#s_column": "details"
                     },
@@ -1080,6 +1100,7 @@ class Lambda_Genesys_Queue():
                     'queue_id': result_json['queue_id'],
                     'contact_id': result_json['conversation_id'],
                 },
+                ConditionExpression='attribute_exists(queue_id) AND attribute_exists(contact_id)',
                 UpdateExpression="SET #s_column=:s_value",
                 ExpressionAttributeNames={
                     "#s_column": "previousAgent"
@@ -1183,26 +1204,26 @@ class Lambda_Genesys_Queue():
 
     def get_test(self):
         try:
-
+            # # Get RAW Truncated List from Genesys based on Q ID
             # data = {}
-            # data["queue_id"] = "ee496fc2-0b8d-4ff2-b3e5-734eafd2fdea"
+            # data["queue_id"] = "00c946ac-d0f3-44d9-a1bc-30a892b25dae"
             # data["q_list_old"] ={}
             # response = self.__get_truncated_contacts_gc(data)
 
-            # Get Conversation Details for Update Details
+            # # Get Conversation Details for Update Details
             # data = {}
-            # data['queue_id'] = "b4c5c4cc-22f3-44d2-9274-7e28802334ad"
-            # data['conversation_id'] = "f3f8e863-56ba-41cb-b7c1-a2a025bda936"
+            # data['queue_id'] = "ee496fc2-0b8d-4ff2-b3e5-734eafd2fdea"
+            # data['conversation_id'] = "1a50922e-d4be-409d-a2be-98f756523703"
             # result = self.__get_contacts_details(data)
             # response = result
             
-            # Update Agents: 
-            data = {}
-            data['queue_id'] = "5787747c-4150-404f-9b0f-f72c8d351a19"
-            data['conversation_id'] = "10375e6c-d7da-4b7a-84bc-159236a6b90b"
-            result = self.__get_previous_agent(data)
-            logger.info(f"__get_previous_agent.result: {result}")
-            response = result
+            # # Update Agents: 
+            # data = {}
+            # data['queue_id'] = "5787747c-4150-404f-9b0f-f72c8d351a19"
+            # data['conversation_id'] = "10375e6c-d7da-4b7a-84bc-159236a6b90b"
+            # result = self.__get_previous_agent(data)
+            # logger.info(f"__get_previous_agent.result: {result}")
+            # response = result
             
             # # Get Q' id only
             # q_array_temp = self.__get_q_array()
@@ -1221,12 +1242,22 @@ class Lambda_Genesys_Queue():
             # reschedule_list = self.__get_reschedule_list()
             # response = self.__get_reschedule_q_id(reschedule_list, q_array_temp)
             
-            # # Get Q Contact from Genesys
+            # Get Q Contact from Genesys
+            q_array_temp = self.__get_q_array()
+            q_array = q_array_temp["q_id"]
+            q_list_old = {"temp":""}
+            conversation_raw_new =self.__get_q_contacts_gc(q_array)
+            conversation_list_new = self.__process_result(conversation_raw_new)
+            response = conversation_list_new
+
+            # # Get conversation list in DB
+            # contacts_list_db = self.__get_q_contacts_db()
             # q_array_temp = self.__get_q_array()
             # q_array = q_array_temp["q_id"]
-            # q_list_old = {"temp":""}
-            # result = self.__get_q_contacts_gc(q_array, q_list_old)
-            # response = result
+            # reschedule_list = self.__get_reschedule_list()
+            # reschedule_id = self.__get_reschedule_q_id(reschedule_list, q_array_temp)
+            # map_assignment = self.__get_agent_details_empty_list(contacts_list_db, q_array, reschedule_id) 
+            # response = map_assignment
 
             # Temp:
             # response = self.__get_contacts_db_by_q("4dd1d42e-d321-4177-b188-fb9882fbc106")
