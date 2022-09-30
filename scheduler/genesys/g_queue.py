@@ -1087,8 +1087,8 @@ class Lambda_Genesys_Queue():
             logger.info("__update_details.END")
             return response
         except Exception as e:
-            logger.error(f"__update_details.Exception: {e}")
-            raise e        
+            logger.warning(f"__update_details.Exception: {e}")
+                    
 
     def __update_agents(self, result_json):
         try:
@@ -1112,8 +1112,8 @@ class Lambda_Genesys_Queue():
             logger.info("__update_agents.END")
             return response
         except Exception as e:
-            logger.error(f"__update_agents.Exception: {e}")
-            raise e  
+            logger.warning(f"__update_agents.Exception: {e}")
+             
 
     def __get_previous_agent_only(self, result_json):
         try:
