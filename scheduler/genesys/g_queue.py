@@ -29,7 +29,7 @@ secret_token = os.getenv('SECRET_TOKEN', "demo-AccessToken")
 tbl_q_contacts = os.getenv('TBL_Q_Contacts', "demo_q_contacts") 
 tbl_contact_details = os.getenv('TBL_Contact_Details', "demo_q_contact_details") 
 contacts_query_interval = os.getenv('CON_QUERY_INTERVAL', 360) 
-clear_cache_days = os.getenv('CLEAR_CACHE_DAYS', 1) # default (0) clear all the cache which is older than 1 day.
+clear_cache_days = os.getenv('CLEAR_CACHE_DAYS', 0) # default (0) clear all the cache which is older than 1 day.
 time_zone = os.getenv('TIME_ZONE', 'Australia/Sydney') # default australia time zone
 # queue_query_interval = os.getenv('QUEUE_QUERY_INTERVAL', 600) 
 
