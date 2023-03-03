@@ -5,6 +5,7 @@ import json
 import logging
 import time
 import datetime
+import pytz
 # from datetime import datetime
 # from datetime import date
 # from dateutil.relativedelta import relativedelta
@@ -28,6 +29,8 @@ secret_token = os.getenv('SECRET_TOKEN', "demo-AccessToken")
 tbl_q_contacts = os.getenv('TBL_Q_Contacts', "demo_q_contacts") 
 tbl_contact_details = os.getenv('TBL_Contact_Details', "demo_q_contact_details") 
 contacts_query_interval = os.getenv('CON_QUERY_INTERVAL', 360) 
+clear_cache_days = os.getenv('CLEAR_CACHE_DAYS', 1) # default (0) clear all the cache which is older than 1 day.
+time_zone = os.getenv('TIME_ZONE', 'Australia/Sydney') # default australia time zone
 # queue_query_interval = os.getenv('QUEUE_QUERY_INTERVAL', 600) 
 
 token_url = f"https://login.{genesys_environment}/oauth/token"
@@ -276,9 +279,11 @@ class Lambda_Genesys_Queue():
             logger.error(f"post_get_qcontacts.Exception: {e}")
             raise e 
 
+    # Every minute this method is triggered by Amazon EventBridge.
     def get_update_contact_details(self): 
         try:
             logger.info("get_update_contact_details.START")
+            
             contacts_list_db = self.__get_q_contacts_db()
             q_array_temp = self.__get_q_array()
             q_array = q_array_temp["q_id"]
@@ -1202,11 +1207,45 @@ class Lambda_Genesys_Queue():
             logger.error(f"__clear_cache.Exception: {e}")
             raise e  
 
+    # Karuna - delete the rows (- 1 day) of contact_details table for clean up
+    def __clear_cache_by_date(self):
+        try:
+            logger.info("__clear_cache_by_date.START")
+            AS_TimeZone = pytz.timezone(time_zone)
+            local_dt = datetime.datetime.now(AS_TimeZone)
+            logger.info(f"__clear_cache_by_date.local_dt: {local_dt}")
+            logger.info(f"__clear_cache_by_date.hour: {local_dt.hour}")
+            logger.info(f"__clear_cache_by_date.minute: {local_dt.minute}")
+            if local_dt.hour == 23 and local_dt.minute > 58:
+                logger.info(f"__clear_cache_by_date.START CLEAR CACHE: {local_dt}")
+                table = self.dynamodb.Table(self.env['tbl_contact_details'])
+                date = datetime.datetime.now() - datetime.timedelta(days=clear_cache_days)
+                dt_epoch_time = datetime.datetime(date.year,date.month,date.day,0,0).timestamp()
+                logger.info(f"__clear_cache_by_date.dt_epoch_time: {dt_epoch_time}")
+                response = table.scan(FilterExpression=Attr("timestamp").lte(int(dt_epoch_time)) )
+                response_json = response['Items']
+                logger.info(f"__clear_cache_by_date.LENGTH: {len(response_json)}")
+                with table.batch_writer() as batch:
+                    for contact in response_json:
+                        batch.delete_item(
+                            Key={
+                                'queue_id': contact['queue_id'],
+                                'contact_id': contact['contact_id']
+                            }
+                        )
+                logger.info("__clear_cache_by_date.END")
+                response_json_temp = json.dumps(response_json, default=self.__rep_decimal)
+                return json.loads(response_json_temp)
+            return "Cache NOT cleared"
+        except Exception as e:
+            logger.error(f"__clear_cache_by_date.Exception: {e}")
+            raise e  
+
     def get_test(self):
         try:
             # # Get RAW Truncated List from Genesys based on Q ID
             # data = {}
-            # data["queue_id"] = "00c946ac-d0f3-44d9-a1bc-30a892b25dae"
+            # data["queue_id"] = "ee496fc2-0b8d-4ff2-b3e5-734eafd2fdea"
             # data["q_list_old"] ={}
             # response = self.__get_truncated_contacts_gc(data)
 
@@ -1243,12 +1282,12 @@ class Lambda_Genesys_Queue():
             # response = self.__get_reschedule_q_id(reschedule_list, q_array_temp)
             
             # Get Q Contact from Genesys
-            q_array_temp = self.__get_q_array()
-            q_array = q_array_temp["q_id"]
-            q_list_old = {"temp":""}
-            conversation_raw_new =self.__get_q_contacts_gc(q_array)
-            conversation_list_new = self.__process_result(conversation_raw_new)
-            response = conversation_list_new
+            # q_array_temp = self.__get_q_array()
+            # q_array = q_array_temp["q_id"]
+            # q_list_old = {"temp":""}
+            # conversation_raw_new =self.__get_q_contacts_gc(q_array)
+            # conversation_list_new = self.__process_result(conversation_raw_new)
+            # response = conversation_list_new
 
             # # Get conversation list in DB
             # contacts_list_db = self.__get_q_contacts_db()
@@ -1259,6 +1298,9 @@ class Lambda_Genesys_Queue():
             # map_assignment = self.__get_agent_details_empty_list(contacts_list_db, q_array, reschedule_id) 
             # response = map_assignment
 
+            # Clear cache by date
+            response = self.__clear_cache_by_date()
+            
             # Temp:
             # response = self.__get_contacts_db_by_q("4dd1d42e-d321-4177-b188-fb9882fbc106")
             # logger.info("get_test.END")

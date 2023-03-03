@@ -143,3 +143,11 @@ AWS SAM Error:
 Bookmark:
     Ctl+Atl+K
     Ctl+P -> Type Bookmark: <function>
+
+Run the BORG environment in LOCAL:
+    Run the below command in the terminal
+        export AWS_PROFILE=borg
+    In template.yaml, uncomment the borg environment variables.
+    Run the below command.
+        cd scheduler
+        sam local start-api --host 10.10.42.26 --port 3000
