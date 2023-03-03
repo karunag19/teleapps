@@ -283,6 +283,7 @@ class Lambda_Genesys_Queue():
     def get_update_contact_details(self): 
         try:
             logger.info("get_update_contact_details.START")
+            self.__clear_cache_by_date()
             
             contacts_list_db = self.__get_q_contacts_db()
             q_array_temp = self.__get_q_array()
@@ -1214,10 +1215,9 @@ class Lambda_Genesys_Queue():
             AS_TimeZone = pytz.timezone(time_zone)
             local_dt = datetime.datetime.now(AS_TimeZone)
             logger.info(f"__clear_cache_by_date.local_dt: {local_dt}")
-            logger.info(f"__clear_cache_by_date.hour: {local_dt.hour}")
-            logger.info(f"__clear_cache_by_date.minute: {local_dt.minute}")
             if local_dt.hour == 23 and local_dt.minute > 58:
-                logger.info(f"__clear_cache_by_date.START CLEAR CACHE: {local_dt}")
+                logger.info("__clear_cache_by_date.EXECUTED")
+                logger.info(f"__clear_cache_by_date.local_dt: {local_dt}")
                 table = self.dynamodb.Table(self.env['tbl_contact_details'])
                 date = datetime.datetime.now() - datetime.timedelta(days=clear_cache_days)
                 dt_epoch_time = datetime.datetime(date.year,date.month,date.day,0,0).timestamp()
@@ -1235,7 +1235,7 @@ class Lambda_Genesys_Queue():
                         )
                 logger.info("__clear_cache_by_date.END")
                 response_json_temp = json.dumps(response_json, default=self.__rep_decimal)
-                return json.loads(response_json_temp)
+                return "Success"
             return "Cache NOT cleared"
         except Exception as e:
             logger.error(f"__clear_cache_by_date.Exception: {e}")
